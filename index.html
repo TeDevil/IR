@@ -171,6 +171,7 @@ main{padding:10px 10px 0 10px}
     <button class="sec" onclick="backupAll()">备份全部（JSON，可换手机恢复）</button>
     <button class="sec" onclick="document.getElementById('fileIn').click()">从备份恢复</button>
     <input type="file" id="fileIn" accept=".json,application/json" style="display:none" onchange="restoreAll(this)">
+    <button class="sec" onclick="forceRefresh()">强制更新到最新版（清离线缓存，数据不丢）</button>
     <button class="sec" onclick="closeSheet('shHist')">关闭</button>
   </div>
 </div>
@@ -187,6 +188,7 @@ main{padding:10px 10px 0 10px}
 
 <script>
 "use strict";
+var APP_VER="v5";          /* 界面右下角可见，用来核对手机是否是新版 */
 var LS_CUR="cbct_cur_v3", LS_HIST="cbct_hist_v3";
 
 var CAT=["肝总动脉","肝固有动脉","肝右动脉","右前支","右后支","肝左动脉","左内支","左外支",
@@ -415,7 +417,7 @@ function renderSum(){
   document.getElementById("sF").textContent=f;
   document.getElementById("sV").textContent=(Math.round(v*10)/10)+"mL";
   document.getElementById("sI").textContent=(Math.round(iod*10)/10)+"g";
-  document.getElementById("cnt").textContent=S.runs.length+" 条";
+  document.getElementById("cnt").textContent=S.runs.length+" 条 · "+APP_VER;
 }
 
 /* ---------------- 导出 ---------------- */
@@ -572,6 +574,40 @@ function restoreAll(inp){
   rd.readAsText(f);
   inp.value="";
 }
+
+/* ---------------- 强制更新 ---------------- */
+function forceRefresh(){
+  if(!confirm("清除离线缓存并重新加载？\n\n已录入的数据保存在本地存储里，不会丢。\n升级版本后手机上打不开新版时，点这里。"))return;
+  var jobs=[];
+  try{
+    jobs.push(caches.keys().then(function(ks){
+      return Promise.all(ks.map(function(k){return caches.delete(k)}));
+    }));
+  }catch(e){}
+  if("serviceWorker" in navigator){
+    jobs.push(navigator.serviceWorker.getRegistrations().then(function(rs){
+      return Promise.all(rs.map(function(r){return r.unregister()}));
+    }));
+  }
+  Promise.all(jobs).catch(function(){}).then(function(){
+    location.replace(location.pathname+"?v="+Date.now());
+  });
+}
+
+/* 新的 Service Worker 接管后重载一次，让新版立即生效。
+   只在「换了 sw.js」时触发一次；数据每次改动都已存本地，重载不丢。 */
+(function(){
+  var done=false;
+  try{
+    if(!("serviceWorker" in navigator)||!navigator.serviceWorker.addEventListener)return;
+    navigator.serviceWorker.addEventListener("controllerchange",function(){
+      if(done)return;
+      done=true;
+      if(document.visibilityState==="hidden")return;   /* 后台就不打扰 */
+      location.reload();
+    });
+  }catch(e){/* 任何异常都不该影响记录功能 */}
+})();
 
 /* ---------------- Service Worker（离线缓存） ---------------- */
 (function(){
