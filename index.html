@@ -1,0 +1,594 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0e1726">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="CBCT记录">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<title>增强CBCT术中记录</title>
+<style>
+:root{
+  --bg:#0e1726;--card:#182437;--card2:#21304a;--line:#2c3f5c;
+  --txt:#e8eef8;--dim:#8fa3bf;--blue:#3b82f6;--green:#22c55e;
+  --amber:#f59e0b;--red:#ef4444;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+button,input,select,textarea{font-family:inherit;touch-action:manipulation}
+html,body{margin:0;padding:0;background:#0e1726;color:#e8eef8;
+  font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+body{padding-bottom:192px}
+header{position:sticky;top:0;z-index:30;background:#0b1320;border-bottom:1px solid #2c3f5c;
+  padding:calc(8px + env(safe-area-inset-top)) 10px 8px 10px}
+.hrow{display:flex;gap:8px;align-items:flex-end;margin-bottom:6px}
+.hrow:last-child{margin-bottom:0}
+label.f{flex:1;display:flex;flex-direction:column;font-size:11px;color:#8fa3bf;gap:3px;min-width:0}
+label.f input,label.f select{background:#182437;border:1px solid #2c3f5c;color:#e8eef8;
+  border-radius:8px;padding:9px 8px;font-size:16px;width:100%;min-width:0}
+.saved{font-size:11px;color:#8fa3bf;white-space:nowrap}
+main{padding:10px 10px 0 10px}
+.card{background:#182437;border:1px solid #2c3f5c;border-radius:12px;margin-bottom:10px;overflow:hidden}
+.card.new{animation:pop .18s ease-out}
+@keyframes pop{from{transform:scale(.97);opacity:.4}to{transform:scale(1);opacity:1}}
+.chead{display:flex;align-items:center;gap:7px;padding:8px 9px;background:#21304a}
+.seq{font-weight:700;font-size:14px;color:#0e1726;background:#8fa3bf;border-radius:6px;
+  min-width:26px;height:24px;display:flex;align-items:center;justify-content:center;padding:0 6px}
+.seq.dsa{background:#3b82f6;color:#fff}
+.seq.cbct{background:#22c55e;color:#06240f}
+.seq.fl{background:#f59e0b;color:#2b1a00}
+.tm{font-size:12px;color:#8fa3bf;font-variant-numeric:tabular-nums}
+.grow{flex:1}
+.mbtn{background:transparent;border:1px solid #2c3f5c;color:#8fa3bf;border-radius:7px;
+  padding:5px 9px;font-size:12px}
+.mbtn:active{background:#26364f;color:#e8eef8}
+.mbtn.d:active{background:#3a1a1a;color:#ef4444}
+.body{padding:8px 9px 10px 9px;display:flex;flex-direction:column;gap:9px}
+.row2{display:flex;gap:9px}
+.fld{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
+.fld>span{font-size:11px;color:#8fa3bf}
+.fld input{background:#12203a;border:1px solid #2c3f5c;color:#e8eef8;
+  border-radius:8px;padding:9px;font-size:16px;width:100%}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid #2c3f5c;background:#12203a;color:#e8eef8;border-radius:999px;
+  padding:6px 11px;font-size:14px;min-height:32px;display:flex;align-items:center}
+.chip.on{background:#3b82f6;border-color:#3b82f6;color:#fff;font-weight:600}
+.chip.on.r{background:#ef4444;border-color:#ef4444;color:#fff}
+.hintline{font-size:11px;color:#8fa3bf}
+#sum{position:fixed;left:0;right:0;bottom:calc(124px + env(safe-area-inset-bottom));
+  background:rgba(11,19,32,.96);border-top:1px solid #2c3f5c;display:flex;z-index:25}
+#sum div{flex:1;text-align:center;padding:6px 1px;font-size:10px;color:#8fa3bf;
+  border-right:1px solid #1b2942}
+#sum div:last-child{border-right:none}
+#sum b{display:block;font-size:15px;color:#e8eef8;font-variant-numeric:tabular-nums}
+#bar{position:fixed;left:0;right:0;bottom:0;padding:8px 8px calc(8px + env(safe-area-inset-bottom)) 8px;
+  background:#0b1320;border-top:1px solid #2c3f5c;z-index:26}
+.btns{display:flex;gap:8px}
+.btns button{flex:1;border:none;border-radius:12px;padding:13px 3px;font-size:16px;font-weight:700;
+  color:#fff;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.15}
+.btns button small{font-size:10px;font-weight:400;opacity:.85}
+.bDSA{background:linear-gradient(180deg,#3b82f6,#2563eb)}
+.bCBCT{background:linear-gradient(180deg,#22c55e,#16a34a);color:#06240f!important}
+.bFL{background:linear-gradient(180deg,#f59e0b,#d97706);color:#2b1a00!important}
+.tools{display:flex;gap:6px;margin-top:7px}
+.tools button{flex:1;background:#16233a;border:1px solid #2c3f5c;color:#8fa3bf;
+  border-radius:9px;padding:9px 2px;font-size:12px}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:none;align-items:flex-end}
+.sheet.on{display:flex}
+.pane{background:#182437;width:100%;max-height:86vh;overflow:auto;
+  border-radius:16px 16px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom)) 14px}
+.pane h3{margin:0 0 10px 0;font-size:16px}
+.pane textarea{width:100%;height:200px;background:#12203a;color:#e8eef8;
+  border:1px solid #2c3f5c;border-radius:10px;padding:10px;font:12px/1.4 ui-monospace,monospace}
+.pane button.act{width:100%;margin-top:10px;padding:13px;border-radius:11px;border:none;
+  background:#3b82f6;color:#fff;font-size:15px;font-weight:600}
+.pane button.sec{width:100%;margin-top:10px;padding:13px;border-radius:11px;
+  background:#16233a;color:#e8eef8;border:1px solid #2c3f5c;font-size:15px}
+.hist{font-size:13px;color:#8fa3bf;border-bottom:1px solid #2c3f5c;padding:10px 0;
+  display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hist b{color:#e8eef8;font-size:14px}
+.mini{background:#16233a;border:1px solid #2c3f5c;color:#e8eef8;border-radius:7px;
+  padding:6px 11px;font-size:12px}
+.empty{color:#8fa3bf;text-align:center;padding:24px 12px;font-size:13px;line-height:1.8}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <label class="f" style="flex:1.1">患者编号<input id="pid" placeholder="P001" autocomplete="off"></label>
+    <label class="f" style="flex:1">日期<input id="date" type="date"></label>
+    <label class="f" style="flex:.8">技师
+      <select id="tech"><option value="">-</option><option>悦</option><option>颖</option><option>禹</option><option>其他</option></select>
+    </label>
+  </div>
+  <div class="hrow">
+    <label class="f">设备
+      <select id="device">
+        <option>飞利浦Azurion7M20</option><option>飞利浦另一台</option><option>西门子</option>
+        <option>佳能</option><option>联影悬吊</option><option>联影落地</option>
+      </select>
+    </label>
+    <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">
+      <span class="saved" id="saved">已保存</span>
+      <span class="hintline" id="cnt">0 条</span>
+    </div>
+  </div>
+</header>
+
+<main id="runs"></main>
+
+<div id="sum">
+  <div>造影<b id="sD">0</b></div>
+  <div>CBCT<b id="sC">0</b></div>
+  <div>透视<b id="sF">0</b></div>
+  <div>对比剂<b id="sV">0</b></div>
+  <div>碘量<b id="sI">0</b></div>
+</div>
+
+<div id="bar">
+  <div class="btns">
+    <button class="bDSA"  onclick="add('DSA')">造影<small>2D DSA</small></button>
+    <button class="bCBCT" onclick="add('CBCT')">增强CBCT<small>旋转采集</small></button>
+    <button class="bFL"   onclick="add('FL')">透视<small>无注射</small></button>
+  </div>
+  <div class="tools">
+    <button onclick="openExport()">导出 / 交接</button>
+    <button onclick="openHist()">历史台次</button>
+    <button onclick="newSession()">结束本台</button>
+  </div>
+</div>
+
+<div class="sheet" id="shExport">
+  <div class="pane">
+    <h3>导出本台记录</h3>
+    <div class="hintline" style="margin-bottom:8px">CSV 可直接用 Excel 打开（已带 BOM，中文不乱码）；也可复制文本发微信。</div>
+    <textarea id="expArea" readonly></textarea>
+    <button class="act" onclick="downloadCSV()">下载 CSV 文件</button>
+    <button class="sec" onclick="copyText()">复制文本</button>
+    <button class="sec" onclick="closeSheet('shExport')">关闭</button>
+  </div>
+</div>
+
+<div class="sheet" id="shHist">
+  <div class="pane">
+    <h3>历史台次与备份</h3>
+    <div id="histList"></div>
+    <div class="hintline" id="swState" style="margin-top:10px"></div>
+    <button class="act" onclick="exportAllCSV()">导出全部台次 CSV（合并成一个文件）</button>
+    <button class="sec" onclick="backupAll()">备份全部（JSON，可换手机恢复）</button>
+    <button class="sec" onclick="document.getElementById('fileIn').click()">从备份恢复</button>
+    <input type="file" id="fileIn" accept=".json,application/json" style="display:none" onchange="restoreAll(this)">
+    <button class="sec" onclick="closeSheet('shHist')">关闭</button>
+  </div>
+</div>
+
+<div class="sheet" id="shIns">
+  <div class="pane">
+    <h3>在这一条之前补插</h3>
+    <button class="act"  onclick="doInsert('DSA')">补插一次造影</button>
+    <button class="act" style="background:#22c55e;color:#06240f" onclick="doInsert('CBCT')">补插一次增强CBCT</button>
+    <button class="act" style="background:#f59e0b;color:#2b1a00" onclick="doInsert('FL')">补插一次透视</button>
+    <button class="sec" onclick="closeSheet('shIns')">取消</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+var LS_CUR="cbct_cur_v3", LS_HIST="cbct_hist_v3";
+
+var CAT=["肝总动脉","肝固有动脉","肝右动脉","右前支","右后支","肝左动脉","左内支","左外支",
+         "肝中动脉","段动脉","亚段动脉","胆囊动脉","其他动脉","仅透视未造影","无法判断"];
+var PURPOSE=["首次造影","超选后确认","栓塞后确认","双期","平扫","空跑试旋转","重扫补做"];
+var STAIN=["好","一般","差"];
+var CONC=[300,350,370];
+var FLOW_P=[0.5,1,1.5,2,2.5,3];
+var VOL_P=[3,5,6,8,10,15];
+var DELAY_P=[6,8,10,11,12,14,16];
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function pad(n){return (n<10?"0":"")+n}
+function todayStr(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function nowStr(){var d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds())}
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+  .replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+
+var S=(function(){
+  try{var t=localStorage.getItem(LS_CUR);if(t)return JSON.parse(t)}catch(e){}
+  return {id:uid(),pid:"",date:todayStr(),tech:"",device:"飞利浦Azurion7M20",runs:[]};
+})();
+
+function histData(){try{return JSON.parse(localStorage.getItem(LS_HIST)||"[]")}catch(e){return[]}}
+
+var saveTimer=null;
+function save(){
+  localStorage.setItem(LS_CUR,JSON.stringify(S));
+  var el=document.getElementById("saved");
+  el.textContent="已保存 "+nowStr();el.style.color="#22c55e";
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(function(){el.style.color="#8fa3bf"},1500);
+  renderSum();
+}
+
+["pid","date","tech","device"].forEach(function(k){
+  var el=document.getElementById(k);
+  el.value=S[k]||"";
+  var h=function(){S[k]=el.value;save()};
+  el.addEventListener("input",h);el.addEventListener("change",h);
+});
+
+/* ---------------- 增删 ---------------- */
+function prevParam(i){
+  for(var k=i-1;k>=0;k--){
+    var r=S.runs[k];
+    if(r.type==="CBCT"||r.type==="DSA")return r;
+  }
+  return null;
+}
+function mkRun(type,anchor){
+  var p=anchor||{catheter:"",flow:"",volume:"",conc:"350"};
+  var r={seq:0,time:nowStr(),type:type,
+    catheter:p.catheter||"",flow:p.flow||"",volume:p.volume||"",delay:"",
+    conc:p.conc||"350",purpose:"",phase:"",rescan:"",stain:"",note:"",
+    series:""};
+  if(type==="CBCT"||type==="DSA"){
+    r.flow=r.flow||"1.5";r.volume=r.volume||"6";
+  }
+  if(type==="FL"){r.catheter="仅透视未造影";r.flow="";r.volume="";r.conc=""}
+  return r;
+}
+function renumber(){S.runs.forEach(function(x,k){x.seq=k+1})}
+function add(type){
+  var r=mkRun(type,prevParam(S.runs.length));
+  S.runs.push(r);renumber();save();render();
+  var m=document.getElementById("runs");
+  if(m.lastElementChild)m.lastElementChild.scrollIntoView({behavior:"smooth",block:"center"});
+}
+var pendIns=-1;
+function askInsert(i){pendIns=i;document.getElementById("shIns").classList.add("on")}
+function doInsert(type){
+  if(pendIns<0){closeSheet("shIns");return}
+  var r=mkRun(type,prevParam(pendIns));
+  S.runs.splice(pendIns,0,r);
+  renumber();
+  closeSheet("shIns");save();render();
+  pendIns=-1;
+}
+function del(i){
+  if(!confirm("删除第 "+(i+1)+" 条？"))return;
+  S.runs.splice(i,1);
+  renumber();
+  save();render();
+}
+function dupPhase(i){
+  var src=S.runs[i];
+  var r=mkRun("CBCT",src);
+  r.purpose=src.purpose;r.phase="第二相延迟期";
+  S.runs.splice(i+1,0,r);
+  renumber();
+  save();render();
+}
+
+/* ---------------- 渲染 ---------------- */
+function render(){
+  var m=document.getElementById("runs");
+  if(!S.runs.length){
+    m.innerHTML='<div class="empty">还没有记录。<br><br>按手术实际顺序点下方按钮：<br>'+
+      '<span style="color:#3b82f6">造影</span> → <span style="color:#22c55e">增强CBCT</span> → '+
+      '<span style="color:#f59e0b">透视</span><br><br>造影和CBCT交错记，顺序就是手术顺序。<br>'+
+      '漏了一条？点卡片上的「↑」在它前面补插。</div>';
+    renderSum();return;
+  }
+  var h="";
+  for(var i=0;i<S.runs.length;i++)h+=card(S.runs[i],i);
+  m.innerHTML=h;
+  renderSum();
+}
+
+function chipHTML(i,key,val,label,on,color){
+  return '<button class="chip'+(on?" on"+(color==="r"?" r":""):"")+
+    '" data-i="'+i+'" data-k="'+key+'" data-v="'+esc(val)+'" onclick="pick(this)">'+esc(label)+'</button>';
+}
+function pick(el){
+  var i=+el.getAttribute("data-i"),k=el.getAttribute("data-k"),v=el.getAttribute("data-v");
+  S.runs[i][k]=v;
+  if(k==="purpose"){if(v!=="双期")S.runs[i].phase="";save();render();return}
+  if(k==="rescan"){save();render();return}
+  if(k==="catheter"&&v==="仅透视未造影"){save();render();return}
+  save();refreshChips(i,k);
+}
+function refreshChips(i,k){
+  var nodes=document.querySelectorAll('[data-i="'+i+'"][data-k="'+k+'"]');
+  var cur=S.runs[i][k]==null?"":String(S.runs[i][k]);
+  for(var n=0;n<nodes.length;n++){
+    var v=nodes[n].getAttribute("data-v");
+    if(v===cur)nodes[n].className="chip on"+(nodes[n].getAttribute("data-k")==="rescan"?" r":"");
+    else nodes[n].className="chip";
+  }
+}
+function setText(i,k,val){
+  S.runs[i][k]=val;save();
+  if(k==="delay"||k==="flow"||k==="volume")refreshChips(i,k);
+}
+
+function card(r,i){
+  var cls=r.type==="CBCT"?"cbct":(r.type==="DSA"?"dsa":"fl");
+  var tname=r.type==="CBCT"?"增强CBCT":(r.type==="DSA"?"造影 DSA":"透视");
+  var b='<div class="card"><div class="chead">'+
+    '<span class="seq '+cls+'">'+r.seq+'</span>'+
+    '<span style="font-weight:600;font-size:13px">'+tname+'</span>'+
+    '<span class="tm">'+esc(r.time)+'</span><span class="grow"></span>'+
+    '<button class="mbtn" onclick="askInsert('+i+')">↑</button>'+
+    '<button class="mbtn d" onclick="del('+i+')">删</button>'+
+    '</div><div class="body">';
+
+  if(r.type==="FL"){
+    b+='<div class="hintline">透视轮次，只作流水记录，不填参数。</div>';
+  }else{
+    b+='<div class="fld"><span>导管位置</span><div class="chips">';
+    CAT.forEach(function(c){b+=chipHTML(i,"catheter",c,c,r.catheter===c)});
+    b+='</div></div>';
+
+    if(r.type==="CBCT"){
+      b+='<div class="fld"><span>延迟（秒）· 核心参数</span><div class="chips">';
+      DELAY_P.forEach(function(c){b+=chipHTML(i,"delay",c,c,String(r.delay)===String(c))});
+      b+='</div><input inputmode="decimal" placeholder="其他数值" value="'+esc(r.delay)+
+         '" oninput="setText('+i+',\'delay\',this.value)"></div>';
+    }
+
+    b+='<div class="row2">';
+    b+='<div class="fld"><span>流速 mL/s</span><div class="chips">';
+    FLOW_P.forEach(function(c){b+=chipHTML(i,"flow",c,c,String(r.flow)===String(c))});
+    b+='</div><input inputmode="decimal" value="'+esc(r.flow)+
+       '" oninput="setText('+i+',\'flow\',this.value)"></div>';
+    b+='<div class="fld"><span>总量 mL</span><div class="chips">';
+    VOL_P.forEach(function(c){b+=chipHTML(i,"volume",c,c,String(r.volume)===String(c))});
+    b+='</div><input inputmode="decimal" value="'+esc(r.volume)+
+       '" oninput="setText('+i+',\'volume\',this.value)"></div>';
+    b+='</div>';
+
+    if(r.type==="CBCT"){
+      b+='<div class="fld"><span>机台序列号 · 建议填</span>'+
+         '<input value="'+esc(r.series)+'" oninput="setText('+i+',\'series\',this.value)" '+
+         'placeholder="机台屏幕上显示的序列号"></div>';
+      b+='<div class="fld"><span>浓度 mgI/mL</span><div class="chips">';
+      CONC.forEach(function(c){b+=chipHTML(i,"conc",c,c,String(r.conc)===String(c))});
+      b+='</div></div>';
+
+      b+='<div class="fld"><span>采集目的</span><div class="chips">';
+      PURPOSE.forEach(function(c){b+=chipHTML(i,"purpose",c,c,r.purpose===c)});
+      b+='</div></div>';
+
+      if(r.purpose==="双期"){
+        b+='<div class="fld"><span>时相</span><div class="chips">'+
+           chipHTML(i,"phase","第一相动脉期","第一相",r.phase==="第一相动脉期")+
+           chipHTML(i,"phase","第二相延迟期","第二相",r.phase==="第二相延迟期");
+        if(r.phase==="第一相动脉期"){
+          b+='<button class="chip" style="border-color:#22c55e;color:#22c55e" onclick="dupPhase('+
+             i+')">＋ 复制为第二相</button>';
+        }
+        b+='</div></div>';
+      }
+
+      b+='<div class="fld"><span>重扫 / 废弃</span><div class="chips">'+
+         chipHTML(i,"rescan","","无",r.rescan==="")+
+         chipHTML(i,"rescan","重扫","重扫",r.rescan==="重扫","r")+
+         chipHTML(i,"rescan","废弃","废弃",r.rescan==="废弃","r")+
+         '</div></div>';
+    }else{
+      b+='<div class="fld"><span>染色</span><div class="chips">';
+      STAIN.forEach(function(c){b+=chipHTML(i,"stain",c,c,r.stain===c)});
+      b+='</div></div>';
+    }
+  }
+  b+='<div class="fld"><span>备注</span><input value="'+esc(r.note)+
+     '" oninput="setText('+i+',\'note\',this.value)" placeholder="可空"></div>';
+  return b+'</div></div>';
+}
+
+/* ---------------- 汇总 ---------------- */
+function renderSum(){
+  var d=0,c=0,f=0,v=0,iod=0;
+  S.runs.forEach(function(r){
+    if(r.type==="DSA")d++;else if(r.type==="CBCT")c++;else f++;
+    var vv=parseFloat(r.volume);
+    if(!isNaN(vv)){
+      v+=vv;
+      var cc=parseFloat(r.conc);
+      if(r.type==="CBCT"&&!isNaN(cc))iod+=vv*cc/1000;
+    }
+  });
+  document.getElementById("sD").textContent=d;
+  document.getElementById("sC").textContent=c;
+  document.getElementById("sF").textContent=f;
+  document.getElementById("sV").textContent=(Math.round(v*10)/10)+"mL";
+  document.getElementById("sI").textContent=(Math.round(iod*10)/10)+"g";
+  document.getElementById("cnt").textContent=S.runs.length+" 条";
+}
+
+/* ---------------- 导出 ---------------- */
+var HEAD=["会话ID","患者编号","日期","设备","技师","轮次","时间","类型","导管位置",
+          "机台序列号","流速mL/s","总量mL","延迟s","浓度mgI/mL","采集目的","时相","重扫","染色","备注"];
+function rowOf(s,r){
+  return [s.id,s.pid,s.date,s.device,s.tech,r.seq,r.time,
+    r.type==="CBCT"?"CBCT":(r.type==="DSA"?"DSA":"透视"),
+    r.catheter,r.series,r.flow,r.volume,r.delay,r.conc,r.purpose,r.phase,
+    r.rescan,r.stain,r.note];
+}
+function dataRows(){
+  return S.runs.map(function(r){return rowOf(S,r)});
+}
+function allSessions(){
+  return [JSON.parse(JSON.stringify(S))].concat(histData());
+}
+function allRows(){
+  var out=[];
+  allSessions().forEach(function(s){
+    (s.runs||[]).forEach(function(r){out.push(rowOf(s,r))});
+  });
+  return out;
+}
+function csvCell(v){
+  var s=String(v==null?"":v);
+  return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
+function toCSV(){
+  var L=[HEAD].concat(dataRows());
+  return "\ufeff"+L.map(function(r){return r.map(csvCell).join(",")}).join("\r\n");
+}
+function toTSV(){
+  var L=[HEAD].concat(dataRows());
+  return L.map(function(r){
+    return r.map(function(x){return String(x==null?"":x).replace(/\t/g," ")}).join("\t");
+  }).join("\n");
+}
+function openExport(){
+  document.getElementById("expArea").value=toTSV();
+  document.getElementById("shExport").classList.add("on");
+}
+function closeSheet(id){document.getElementById(id).classList.remove("on")}
+function downloadCSV(){
+  var safe=String(S.pid||"NA").replace(/[^\w\u4e00-\u9fa5-]/g,"");
+  var name="CBCT_"+safe+"_"+(S.date||todayStr())+"_"+S.id+".csv";
+  var blob=new Blob([toCSV()],{type:"text/csv;charset=utf-8"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download=name;
+  document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);if(a.parentNode)a.parentNode.removeChild(a)},1500);
+}
+function copyText(){
+  var ta=document.getElementById("expArea"),ok=false;
+  ta.select();ta.setSelectionRange(0,999999);
+  try{ok=document.execCommand("copy")}catch(e){}
+  if(!ok&&navigator.clipboard){navigator.clipboard.writeText(toTSV());ok=true}
+  alert(ok?"已复制，可直接粘贴到微信或 Excel":"请长按文本框手动复制");
+}
+
+/* ---------------- 台次 ---------------- */
+function newSession(){
+  if(!S.runs.length){alert("本台还没有记录");return}
+  if(!confirm("结束本台并存档？\n存档后开一张新表（下一位患者）。"))return;
+  var h=histData();h.unshift(JSON.parse(JSON.stringify(S)));
+  localStorage.setItem(LS_HIST,JSON.stringify(h));
+  S={id:uid(),pid:"",date:todayStr(),tech:S.tech,device:S.device,runs:[]};
+  document.getElementById("pid").value="";
+  document.getElementById("date").value=S.date;
+  save();render();
+  alert("已存档。记得先点「导出」把 CSV 发出去，再开始下一位。");
+}
+function openHist(){
+  var h=histData(),box=document.getElementById("histList");
+  if(!h.length){box.innerHTML='<div class="empty">还没有存档的台次</div>'}
+  else{
+    box.innerHTML=h.map(function(s,i){
+      var iod=0;
+      (s.runs||[]).forEach(function(r){
+        var v=parseFloat(r.volume),c=parseFloat(r.conc);
+        if(r.type==="CBCT"&&!isNaN(v)&&!isNaN(c))iod+=v*c/1000;
+      });
+      return '<div class="hist"><div><b>'+esc(s.pid||"(无编号)")+'</b> '+esc(s.date)+
+        ' · '+(s.runs||[]).length+' 条 · 碘 '+Math.round(iod*10)/10+' g</div>'+
+        '<button class="mini" onclick="restore('+i+')">载入</button></div>';
+    }).join("");
+  }
+  document.getElementById("shHist").classList.add("on");
+}
+function restore(i){
+  var h=histData();
+  if(!h[i])return;
+  if(!confirm("载入这一台？当前未存档的记录会被覆盖。"))return;
+  S=h[i];save();
+  document.getElementById("pid").value=S.pid||"";
+  document.getElementById("date").value=S.date||todayStr();
+  document.getElementById("tech").value=S.tech||"";
+  document.getElementById("device").value=S.device||"飞利浦Azurion7M20";
+  render();closeSheet("shHist");
+}
+
+
+/* ---------------- 合并导出 / 备份恢复 ---------------- */
+function tsName(){
+  var d=new Date();
+  return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+"_"+pad(d.getHours())+pad(d.getMinutes());
+}
+function saveBlob(blob,name){
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download=name;
+  document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);if(a.parentNode)a.parentNode.removeChild(a)},1500);
+}
+function exportAllCSV(){
+  var L=[HEAD].concat(allRows());
+  if(L.length<2){alert("还没有任何记录");return}
+  var csv="\ufeff"+L.map(function(r){return r.map(csvCell).join(",")}).join("\r\n");
+  saveBlob(new Blob([csv],{type:"text/csv;charset=utf-8"}),
+           "CBCT_全部台次_"+tsName()+".csv");
+}
+function backupAll(){
+  var data={v:1,exported:new Date().toISOString(),sessions:allSessions()};
+  saveBlob(new Blob([JSON.stringify(data,null,1)],{type:"application/json"}),
+           "CBCT_备份_"+tsName()+".json");
+  alert("已导出备份，共 "+data.sessions.length+" 台。\n建议同时发一份到微信或网盘。");
+}
+function restoreAll(inp){
+  var f=inp.files&&inp.files[0];
+  if(!f)return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    try{
+      var d=JSON.parse(rd.result);
+      var arr=d.sessions||(Array.isArray(d)?d:[]);
+      if(!arr.length)throw new Error("文件里没有台次");
+      var h2=histData(),byId={};
+      h2.forEach(function(s){byId[s.id]=s});
+      var merged=0;
+      arr.forEach(function(s){
+        if(!s||!s.id)return;
+        if(s.id===S.id){S=s;return}
+        if(!byId[s.id]){h2.push(s);byId[s.id]=s;merged++}
+      });
+      localStorage.setItem(LS_HIST,JSON.stringify(h2));
+      save();
+      document.getElementById("pid").value=S.pid||"";
+      document.getElementById("date").value=S.date||todayStr();
+      document.getElementById("tech").value=S.tech||"";
+      document.getElementById("device").value=S.device||"飞利浦Azurion7M20";
+      render();closeSheet("shHist");
+      alert("已读入 "+arr.length+" 台，新增 "+merged+" 台，历史共 "+h2.length+" 台。");
+    }catch(e){alert("备份文件读取失败："+e.message)}
+  };
+  rd.readAsText(f);
+  inp.value="";
+}
+
+/* ---------------- Service Worker（离线缓存） ---------------- */
+(function(){
+  var el=document.getElementById("swState");
+  function say(t){if(el)el.textContent=t}
+  if(!("serviceWorker" in navigator)){say("离线缓存：浏览器不支持");return}
+  if(!window.isSecureContext){
+    say("离线缓存未启用：需通过 https 或 localhost 访问（当前是 http 局域网地址）。"
+        +"加主屏幕后仍可正常使用，但断网时打不开。");
+    return;
+  }
+  navigator.serviceWorker.register("sw.js").then(function(){
+    say("离线缓存：已启用（断网也能打开）");
+  }).catch(function(e){
+    say("离线缓存注册失败："+e.message);
+  });
+})();
+
+document.getElementById("date").value=S.date||todayStr();
+render();
+</script>
+</body>
+</html>
+
+
+
