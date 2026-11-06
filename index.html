@@ -577,11 +577,22 @@ function restoreAll(inp){
         +"加主屏幕后仍可正常使用，但断网时打不开。");
     return;
   }
-  navigator.serviceWorker.register("sw.js").then(function(){
+  // register() resolve 只代表注册对象建好了，install 可能因为某个文件 404 而失败。
+  // 必须等 ready（有 active worker）才算真的可用，否则会误报「已启用」。
+  var ready=false;
+  navigator.serviceWorker.ready.then(function(){
+    ready=true;
     say("离线缓存：已启用（断网也能打开）");
-  }).catch(function(e){
+  });
+  navigator.serviceWorker.register("sw.js").catch(function(e){
     say("离线缓存注册失败："+e.message);
   });
+  setTimeout(function(){
+    if(!ready){
+      say("离线缓存尚未就绪：常见原因是 icons 目录没上传全（预缓存要求每个文件都存在），"
+          +"或首次加载还没完成。不影响记录与导出，稍后重新打开本页可再检查。");
+    }
+  },8000);
 })();
 
 document.getElementById("date").value=S.date||todayStr();
