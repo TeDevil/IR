@@ -1,6 +1,6 @@
 /* 增强CBCT术中记录 —— 离线缓存
  *
- * 策略（v2）：
+ * 策略（v3）：
  *   导航请求（HTML）  → 网络优先，失败回退缓存。这样一上传新版本，下次打开就是新的，
  *                      同时断网还能用。
  *   静态资源（图标等）→ 缓存优先，避免每次重下。
@@ -8,7 +8,7 @@
  * v1 是纯 cache-first：只要 sw.js 字节没变，index.html 就永远读旧缓存，
  * 手机端根本看不到更新。改版本号或改本文件才会触发更新，所以 CACHE 名必须随版本递增。
  */
-const CACHE = "cbct-record-v2";
+const CACHE = "cbct-record-v3";
 const ASSETS = [
   "./",
   "./index.html",

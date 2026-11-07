@@ -14,23 +14,27 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <title>增强CBCT术中记录</title>
 <style>
-:root{
-  --bg:#0e1726;--card:#182437;--card2:#21304a;--line:#2c3f5c;
-  --txt:#e8eef8;--dim:#8fa3bf;--blue:#3b82f6;--green:#22c55e;
-  --amber:#f59e0b;--red:#ef4444;
-}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{-webkit-text-size-adjust:100%}
 button,input,select,textarea{font-family:inherit;touch-action:manipulation}
 html,body{margin:0;padding:0;background:#0e1726;color:#e8eef8;
   font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
-body{padding-bottom:192px}
+body{padding-bottom:200px}
+
+/* ---------- 顶部 ---------- */
 header{position:sticky;top:0;z-index:30;background:#0b1320;border-bottom:1px solid #2c3f5c;
   padding:calc(8px + env(safe-area-inset-top)) 10px 8px 10px}
+#hdrMini{display:none;align-items:center;gap:8px;font-size:13px;color:#e8eef8;padding:5px 2px}
+#hdrMini .mt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+#hdrMini .me{flex:none;font-size:11px;color:#3b82f6;border:1px solid #2b4a72;
+  border-radius:6px;padding:3px 9px}
+header.mini #hdrFull{display:none}
+header.mini #hdrMini{display:flex}
 .hrow{display:flex;gap:8px;align-items:flex-end;margin-bottom:7px}
+.hrow:last-child{margin-bottom:0}
 label.f{flex:1;display:flex;flex-direction:column;font-size:11px;color:#8fa3bf;gap:4px;min-width:0}
-/* 三个控件统一 46px 高：iOS 的 input[type=date] 与 select 固有高度不同，
-   不锁死高度会让标签错位（之前 日期 标签比 患者编号 高约 20px） */
+/* 统一 46px：iOS 的 input[type=date] 与 select 固有高度不同，不锁死会标签错位 */
 label.f input,label.f select{background:#182437;border:1px solid #2c3f5c;color:#e8eef8;
   height:46px;padding:0 10px;font-size:16px;width:100%;min-width:0;
   border-radius:10px;box-sizing:border-box;display:block;outline:none}
@@ -40,60 +44,78 @@ label.f select{
   background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%238fa3bf' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
 .hstat{display:flex;justify-content:space-between;align-items:center;
-  font-size:11px;color:#8fa3bf;padding:4px 2px 0;min-height:15px}
+  font-size:11px;color:#8fa3bf;padding:5px 2px 0;min-height:16px}
 .saved{font-size:11px;color:#8fa3bf;white-space:nowrap}
+
+/* ---------- 列表 ---------- */
 main{padding:10px 10px 0 10px}
-.card{background:#182437;border:1px solid #2c3f5c;border-radius:12px;margin-bottom:10px;overflow:hidden}
-.card.new{animation:pop .18s ease-out}
-@keyframes pop{from{transform:scale(.97);opacity:.4}to{transform:scale(1);opacity:1}}
-.chead{display:flex;align-items:center;gap:7px;padding:8px 9px;background:#21304a}
+.card{background:#182437;border:1px solid #2c3f5c;border-radius:12px;margin-bottom:9px;overflow:hidden}
+.card.open{border-color:#33507a}
+.chead{display:flex;align-items:center;gap:7px;padding:9px;background:#21304a}
 .seq{font-weight:700;font-size:14px;color:#0e1726;background:#8fa3bf;border-radius:6px;
-  min-width:26px;height:24px;display:flex;align-items:center;justify-content:center;padding:0 6px}
+  min-width:26px;height:24px;display:flex;align-items:center;justify-content:center;padding:0 6px;flex:none}
 .seq.dsa{background:#3b82f6;color:#fff}
 .seq.cbct{background:#22c55e;color:#06240f}
+.seq.ct{background:#2dd4bf;color:#04231f}
 .seq.fl{background:#f59e0b;color:#2b1a00}
-.tm{font-size:12px;color:#8fa3bf;font-variant-numeric:tabular-nums}
-.grow{flex:1}
+.chead .tname{font-weight:600;font-size:13px;flex:none}
+.chead .tm{font-size:11px;color:#8fa3bf;font-variant-numeric:tabular-nums;flex:none}
+.chead .sum{flex:1;min-width:0;font-size:11px;color:#8fa3bf;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.chead .grow{flex:1}
 .mbtn{background:transparent;border:1px solid #2c3f5c;color:#8fa3bf;border-radius:7px;
-  padding:5px 9px;font-size:12px}
+  padding:5px 9px;font-size:12px;flex:none}
 .mbtn:active{background:#26364f;color:#e8eef8}
 .mbtn.d:active{background:#3a1a1a;color:#ef4444}
-.body{padding:8px 9px 10px 9px;display:flex;flex-direction:column;gap:9px}
+.body{padding:9px;display:flex;flex-direction:column;gap:9px}
+.card:not(.open) .body{display:none}
 .row2{display:flex;gap:9px}
 .fld{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
 .fld>span{font-size:11px;color:#8fa3bf}
 .fld input{background:#12203a;border:1px solid #2c3f5c;color:#e8eef8;
-  border-radius:8px;padding:9px;font-size:16px;width:100%}
+  border-radius:8px;padding:9px;font-size:16px;width:100%;outline:none}
+.fld input::placeholder{color:#4d6280}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{border:1px solid #2c3f5c;background:#12203a;color:#e8eef8;border-radius:999px;
   padding:6px 11px;font-size:14px;min-height:32px;display:flex;align-items:center}
+.chip.sm{padding:5px 9px;font-size:13px;min-height:30px}
 .chip.on{background:#3b82f6;border-color:#3b82f6;color:#fff;font-weight:600}
 .chip.on.r{background:#ef4444;border-color:#ef4444;color:#fff}
-.hintline{font-size:11px;color:#8fa3bf}
-#sum{position:fixed;left:0;right:0;bottom:calc(124px + env(safe-area-inset-bottom));
+.timebar{display:flex;gap:7px;align-items:stretch}
+.timebar input{flex:1;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.btnnow{flex:none;background:#16233a;border:1px solid #2c3f5c;color:#8fa3bf;
+  border-radius:8px;padding:0 12px;font-size:12px}
+.btnnow:active{background:#22334f;color:#e8eef8}
+.hintline{font-size:11px;color:#8fa3bf;line-height:1.55}
+
+/* ---------- 底部 ---------- */
+#sum{position:fixed;left:0;right:0;bottom:calc(122px + env(safe-area-inset-bottom));
   background:rgba(11,19,32,.96);border-top:1px solid #2c3f5c;display:flex;z-index:25}
-#sum div{flex:1;text-align:center;padding:6px 1px;font-size:10px;color:#8fa3bf;
+#sum div{flex:1;text-align:center;padding:6px 1px;font-size:9px;color:#8fa3bf;
   border-right:1px solid #1b2942}
 #sum div:last-child{border-right:none}
-#sum b{display:block;font-size:15px;color:#e8eef8;font-variant-numeric:tabular-nums}
+#sum b{display:block;font-size:14px;color:#e8eef8;font-variant-numeric:tabular-nums}
 #bar{position:fixed;left:0;right:0;bottom:0;padding:8px 8px calc(8px + env(safe-area-inset-bottom)) 8px;
   background:#0b1320;border-top:1px solid #2c3f5c;z-index:26}
-.btns{display:flex;gap:8px}
-.btns button{flex:1;border:none;border-radius:12px;padding:13px 3px;font-size:16px;font-weight:700;
+.btns{display:flex;gap:6px}
+.btns button{flex:1;border:none;border-radius:12px;padding:12px 2px;font-size:15px;font-weight:700;
   color:#fff;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.15}
-.btns button small{font-size:10px;font-weight:400;opacity:.85}
+.btns button small{font-size:9px;font-weight:400;opacity:.85}
 .bDSA{background:linear-gradient(180deg,#3b82f6,#2563eb)}
 .bCBCT{background:linear-gradient(180deg,#22c55e,#16a34a);color:#06240f!important}
+.bCT{background:linear-gradient(180deg,#2dd4bf,#14b8a6);color:#04231f!important}
 .bFL{background:linear-gradient(180deg,#f59e0b,#d97706);color:#2b1a00!important}
 .tools{display:flex;gap:6px;margin-top:7px}
 .tools button{flex:1;background:#16233a;border:1px solid #2c3f5c;color:#8fa3bf;
   border-radius:9px;padding:9px 2px;font-size:12px}
+
+/* ---------- 弹层 ---------- */
 .sheet{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:none;align-items:flex-end}
 .sheet.on{display:flex}
 .pane{background:#182437;width:100%;max-height:86vh;overflow:auto;
   border-radius:16px 16px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom)) 14px}
 .pane h3{margin:0 0 10px 0;font-size:16px}
-.pane textarea{width:100%;height:200px;background:#12203a;color:#e8eef8;
+.pane textarea{width:100%;height:180px;background:#12203a;color:#e8eef8;
   border:1px solid #2c3f5c;border-radius:10px;padding:10px;font:12px/1.4 ui-monospace,monospace}
 .pane button.act{width:100%;margin-top:10px;padding:13px;border-radius:11px;border:none;
   background:#3b82f6;color:#fff;font-size:15px;font-weight:600}
@@ -109,30 +131,40 @@ main{padding:10px 10px 0 10px}
 </head>
 <body>
 
-<header>
-  <div class="hrow">
-    <label class="f">患者编号<input id="pid" placeholder="P001" autocomplete="off"></label>
-    <label class="f">日期<input id="date" type="date"></label>
+<header id="hdr">
+  <div id="hdrFull">
+    <div class="hrow">
+      <label class="f">患者姓名<input id="pname" placeholder="张三" autocomplete="off"></label>
+      <label class="f" style="flex:1.2">患者编号<input id="empi" placeholder="EMPI10180550" autocomplete="off"></label>
+    </div>
+    <div class="hrow">
+      <label class="f" style="flex:1.1">日期<input id="date" type="date"></label>
+      <label class="f" style="flex:.72">技师
+        <select id="tech"><option value="">-</option><option>悦</option><option>颖</option><option>禹</option><option>梁</option><option>林</option><option>郑</option><option>其他</option></select>
+      </label>
+    </div>
+    <div class="hrow">
+      <label class="f">设备
+        <select id="device">
+          <option>飞利浦Azurion7M20</option><option>飞利浦另一台</option><option>西门子</option>
+          <option>佳能</option><option>联影悬吊</option><option>联影落地</option>
+        </select>
+      </label>
+    </div>
+    <div class="hstat"><span class="saved" id="saved">已保存</span><span id="cnt">0 条</span></div>
   </div>
-  <div class="hrow">
-    <label class="f" style="flex:1.55">设备
-      <select id="device">
-        <option>飞利浦Azurion7M20</option><option>飞利浦另一台</option><option>西门子</option>
-        <option>佳能</option><option>联影悬吊</option><option>联影落地</option>
-      </select>
-    </label>
-    <label class="f">技师
-      <select id="tech"><option value="">-</option><option>悦</option><option>颖</option><option>禹</option><option>梁</option><option>林</option><option>郑</option><option>其他</option></select>
-    </label>
+  <div id="hdrMini" onclick="toggleHdr()">
+    <span class="mt" id="miniText">—</span>
+    <span class="me">展开</span>
   </div>
-  <div class="hstat"><span class="saved" id="saved">已保存</span><span id="cnt">0 条</span></div>
 </header>
 
 <main id="runs"></main>
 
 <div id="sum">
   <div>造影<b id="sD">0</b></div>
-  <div>CBCT<b id="sC">0</b></div>
+  <div>增强<b id="sC">0</b></div>
+  <div>平扫<b id="sT">0</b></div>
   <div>透视<b id="sF">0</b></div>
   <div>对比剂<b id="sV">0</b></div>
   <div>碘量<b id="sI">0</b></div>
@@ -142,6 +174,7 @@ main{padding:10px 10px 0 10px}
   <div class="btns">
     <button class="bDSA"  onclick="add('DSA')">造影<small>2D DSA</small></button>
     <button class="bCBCT" onclick="add('CBCT')">增强CBCT<small>旋转采集</small></button>
+    <button class="bCT"   onclick="add('CT')">平扫CBCT<small>无对比剂</small></button>
     <button class="bFL"   onclick="add('FL')">透视<small>无注射</small></button>
   </div>
   <div class="tools">
@@ -154,9 +187,12 @@ main{padding:10px 10px 0 10px}
 <div class="sheet" id="shExport">
   <div class="pane">
     <h3>导出本台记录</h3>
-    <div class="hintline" style="margin-bottom:8px">CSV 可直接用 Excel 打开（已带 BOM，中文不乱码）；也可复制文本发微信。</div>
+    <div class="hintline" style="margin-bottom:8px">
+      CSV 可直接用 Excel 打开（已带 BOM，中文不乱码）；也可复制文本发微信。
+    </div>
     <textarea id="expArea" readonly></textarea>
-    <button class="act" onclick="downloadCSV()">下载 CSV 文件</button>
+    <button class="act" onclick="downloadCSV(false)">下载 CSV（完整，含姓名）</button>
+    <button class="sec" onclick="downloadCSV(true)">下载 CSV（脱敏，去姓名）</button>
     <button class="sec" onclick="copyText()">复制文本</button>
     <button class="sec" onclick="closeSheet('shExport')">关闭</button>
   </div>
@@ -179,8 +215,9 @@ main{padding:10px 10px 0 10px}
 <div class="sheet" id="shIns">
   <div class="pane">
     <h3>在这一条之前补插</h3>
-    <button class="act"  onclick="doInsert('DSA')">补插一次造影</button>
+    <button class="act" onclick="doInsert('DSA')">补插一次造影</button>
     <button class="act" style="background:#22c55e;color:#06240f" onclick="doInsert('CBCT')">补插一次增强CBCT</button>
+    <button class="act" style="background:#2dd4bf;color:#04231f" onclick="doInsert('CT')">补插一次平扫CBCT</button>
     <button class="act" style="background:#f59e0b;color:#2b1a00" onclick="doInsert('FL')">补插一次透视</button>
     <button class="sec" onclick="closeSheet('shIns')">取消</button>
   </div>
@@ -188,17 +225,21 @@ main{padding:10px 10px 0 10px}
 
 <script>
 "use strict";
-var APP_VER="v5";          /* 界面右下角可见，用来核对手机是否是新版 */
-var LS_CUR="cbct_cur_v3", LS_HIST="cbct_hist_v3";
+var APP_VER="v6";
+var LS_CUR="cbct_cur_v4", LS_HIST="cbct_hist_v4";
 
 var CAT=["肝总动脉","肝固有动脉","肝右动脉","右前支","右后支","肝左动脉","左内支","左外支",
          "肝中动脉","段动脉","亚段动脉","胆囊动脉","其他动脉","仅透视未造影","无法判断"];
-var PURPOSE=["首次造影","超选后确认","栓塞后确认","双期","平扫","空跑试旋转","重扫补做"];
+var PURPOSE=["首次造影","超选后确认","栓塞后确认","双期","空跑试旋转","重扫补做"];
 var STAIN=["好","一般","差"];
 var CONC=[300,350,370];
-var FLOW_P=[0.5,1,1.5,2,2.5,3];
-var VOL_P=[3,5,6,8,10,15];
-var DELAY_P=[6,8,10,11,12,14,16];
+/* 流速 / 总量 / 延迟 —— 按术中实际常用值排列 */
+var FLOW_P=[0.5,0.8,1,1.2,1.5,1.8,2,2.5,3,3.5,4,5];
+var VOL_P=[3,4,5,6,7,8,9,10,15,18,20,25];
+var DELAY_P=[3,4,5,6,8,10,11,12,14,16];
+
+var TYPE_NAME={DSA:"造影",CBCT:"增强CBCT",CT:"平扫CBCT",FL:"透视"};
+var TYPE_CAT={DSA:"DSA",CBCT:"增强CBCT",CT:"平扫CBCT",FL:"透视"};
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function pad(n){return (n<10?"0":"")+n}
@@ -206,11 +247,24 @@ function todayStr(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()
 function nowStr(){var d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds())}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
   .replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+/* 机台时间输入：93012 / 9:30 / 0930 / 093012 都归一成 HH:MM:SS
+   注意小时位可能是 1 位（9 点），要先补零再切，否则 93012 会变成 93:01:2 */
+function fmtTime(v){
+  var s=String(v||"").replace(/\D/g,"");
+  if(!s)return "";
+  if(s.length>6)s=s.slice(0,6);
+  if(s.length<=2)return s;          /* 只打了个位数，先不补，等继续输入 */
+  if(s.length===3||s.length===5)s="0"+s;   /* H MM / H MM SS -> 补零成 4 / 6 位 */
+  if(s.length===4)return s.slice(0,2)+":"+s.slice(2);
+  return s.slice(0,2)+":"+s.slice(2,4)+":"+s.slice(4,6);
+}
 
 var S=(function(){
   try{var t=localStorage.getItem(LS_CUR);if(t)return JSON.parse(t)}catch(e){}
-  return {id:uid(),pid:"",date:todayStr(),tech:"",device:"飞利浦Azurion7M20",runs:[]};
+  return {id:uid(),pname:"",empi:"",date:todayStr(),tech:"",device:"飞利浦Azurion7M20",
+          runs:[],hdrMini:false};
 })();
+if(!S.runs)S.runs=[];
 
 function histData(){try{return JSON.parse(localStorage.getItem(LS_HIST)||"[]")}catch(e){return[]}}
 
@@ -221,17 +275,34 @@ function save(){
   el.textContent="已保存 "+nowStr();el.style.color="#22c55e";
   clearTimeout(saveTimer);
   saveTimer=setTimeout(function(){el.style.color="#8fa3bf"},1500);
-  renderSum();
+  renderSum();renderHdr();
 }
 
-["pid","date","tech","device"].forEach(function(k){
+["pname","empi","date","tech","device"].forEach(function(k){
   var el=document.getElementById(k);
   el.value=S[k]||"";
   var h=function(){S[k]=el.value;save()};
   el.addEventListener("input",h);el.addEventListener("change",h);
 });
 
-/* ---------------- 增删 ---------------- */
+/* ---------------- 顶部折叠 ---------------- */
+function toggleHdr(){
+  S.hdrMini=!S.hdrMini;
+  document.getElementById("hdr").classList.toggle("mini",!!S.hdrMini);
+  save();
+}
+function renderHdr(){
+  var t=[];
+  if(S.pname)t.push(S.pname);
+  if(S.empi)t.push(S.empi);
+  if(S.tech)t.push(S.tech);
+  t.push(S.runs.length+" 条");
+  t.push(APP_VER);
+  document.getElementById("miniText").textContent=t.join(" · ");
+  document.getElementById("hdr").classList.toggle("mini",!!S.hdrMini);
+}
+
+/* ---------------- 增删改 ---------------- */
 function prevParam(i){
   for(var k=i-1;k>=0;k--){
     var r=S.runs[k];
@@ -241,20 +312,23 @@ function prevParam(i){
 }
 function mkRun(type,anchor){
   var p=anchor||{catheter:"",flow:"",volume:"",conc:"350"};
-  var r={seq:0,time:nowStr(),type:type,
+  var r={seq:0,time:nowStr(),mtime:"",type:type,
     catheter:p.catheter||"",flow:p.flow||"",volume:p.volume||"",delay:"",
     conc:p.conc||"350",purpose:"",phase:"",rescan:"",stain:"",note:"",
-    series:""};
-  if(type==="CBCT"||type==="DSA"){
-    r.flow=r.flow||"1.5";r.volume=r.volume||"6";
-  }
+    series:"",open:true};
+  if(type==="CBCT"||type==="DSA"){r.flow=r.flow||"1.5";r.volume=r.volume||"6"}
   if(type==="FL"){r.catheter="仅透视未造影";r.flow="";r.volume="";r.conc=""}
+  if(type==="CT"){r.catheter="";r.flow="";r.volume="";r.conc="";r.purpose="平扫"}
   return r;
 }
 function renumber(){S.runs.forEach(function(x,k){x.seq=k+1})}
+function collapseAll(){S.runs.forEach(function(x){x.open=false})}
 function add(type){
+  collapseAll();
   var r=mkRun(type,prevParam(S.runs.length));
-  S.runs.push(r);renumber();save();render();
+  S.runs.push(r);renumber();
+  if(S.runs.length===1)S.hdrMini=true;   /* 首条之后自动收顶部，把屏幕让给列表 */
+  save();render();
   var m=document.getElementById("runs");
   if(m.lastElementChild)m.lastElementChild.scrollIntoView({behavior:"smooth",block:"center"});
 }
@@ -263,52 +337,67 @@ function askInsert(i){pendIns=i;document.getElementById("shIns").classList.add("
 function doInsert(type){
   if(pendIns<0){closeSheet("shIns");return}
   var r=mkRun(type,prevParam(pendIns));
-  S.runs.splice(pendIns,0,r);
-  renumber();
-  closeSheet("shIns");save();render();
-  pendIns=-1;
+  S.runs.splice(pendIns,0,r);renumber();
+  collapseAll();r.open=true;
+  closeSheet("shIns");save();render();pendIns=-1;
 }
 function del(i){
   if(!confirm("删除第 "+(i+1)+" 条？"))return;
-  S.runs.splice(i,1);
-  renumber();
-  save();render();
+  S.runs.splice(i,1);renumber();save();render();
 }
 function dupPhase(i){
   var src=S.runs[i];
   var r=mkRun("CBCT",src);
-  r.purpose=src.purpose;r.phase="第二相延迟期";
-  S.runs.splice(i+1,0,r);
-  renumber();
+  r.purpose=src.purpose;r.phase="第二相延迟期";r.mtime=src.mtime;
+  S.runs.splice(i+1,0,r);renumber();
+  collapseAll();r.open=true;
   save();render();
+}
+function toggleCard(i,ev){
+  if(ev&&ev.target&&ev.target.tagName==="BUTTON")return;
+  S.runs[i].open=!S.runs[i].open;save();render();
 }
 
 /* ---------------- 渲染 ---------------- */
+function summaryOf(r){
+  var t=[];
+  if(r.catheter)t.push(r.catheter);
+  if(r.type==="CBCT"||r.type==="DSA"){
+    if(r.flow)t.push(r.flow+"mL/s");
+    if(r.volume)t.push(r.volume+"mL");
+  }
+  if(r.type==="CBCT"&&r.delay)t.push("延迟"+r.delay+"s");
+  if(r.type==="CBCT"&&r.purpose)t.push(r.purpose);
+  if(r.series)t.push("序"+r.series);
+  if(r.rescan)t.push(r.rescan);
+  return t.join(" ");
+}
 function render(){
   var m=document.getElementById("runs");
   if(!S.runs.length){
     m.innerHTML='<div class="empty">还没有记录。<br><br>按手术实际顺序点下方按钮：<br>'+
-      '<span style="color:#3b82f6">造影</span> → <span style="color:#22c55e">增强CBCT</span> → '+
-      '<span style="color:#f59e0b">透视</span><br><br>造影和CBCT交错记，顺序就是手术顺序。<br>'+
-      '漏了一条？点卡片上的「↑」在它前面补插。</div>';
-    renderSum();return;
+      '<span style="color:#3b82f6">造影</span> · <span style="color:#22c55e">增强CBCT</span> · '+
+      '<span style="color:#2dd4bf">平扫CBCT</span> · <span style="color:#f59e0b">透视</span><br><br>'+
+      '造影和CBCT交错记，顺序就是手术顺序。<br>'+
+      '漏了一条？点卡片上的「↑」在它前面补插。<br><br>'+
+      '<span style="color:#8fa3bf">每条都要填「机台序列时间」，<br>'+
+      '它比手机时间可靠，是跟影像对号的依据。</span></div>';
+    renderSum();renderHdr();return;
   }
   var h="";
   for(var i=0;i<S.runs.length;i++)h+=card(S.runs[i],i);
   m.innerHTML=h;
-  renderSum();
+  renderSum();renderHdr();
 }
-
-function chipHTML(i,key,val,label,on,color){
-  return '<button class="chip'+(on?" on"+(color==="r"?" r":""):"")+
+function chipHTML(i,key,val,label,on,color,sm){
+  return '<button class="chip'+(sm?" sm":"")+(on?" on"+(color?" "+color:""):"")+
     '" data-i="'+i+'" data-k="'+key+'" data-v="'+esc(val)+'" onclick="pick(this)">'+esc(label)+'</button>';
 }
 function pick(el){
   var i=+el.getAttribute("data-i"),k=el.getAttribute("data-k"),v=el.getAttribute("data-v");
   S.runs[i][k]=v;
   if(k==="purpose"){if(v!=="双期")S.runs[i].phase="";save();render();return}
-  if(k==="rescan"){save();render();return}
-  if(k==="catheter"&&v==="仅透视未造影"){save();render();return}
+  if(k==="rescan"||k==="catheter"||k==="stain"||k==="phase"){save();render();return}
   save();refreshChips(i,k);
 }
 function refreshChips(i,k){
@@ -316,82 +405,103 @@ function refreshChips(i,k){
   var cur=S.runs[i][k]==null?"":String(S.runs[i][k]);
   for(var n=0;n<nodes.length;n++){
     var v=nodes[n].getAttribute("data-v");
-    if(v===cur)nodes[n].className="chip on"+(nodes[n].getAttribute("data-k")==="rescan"?" r":"");
-    else nodes[n].className="chip";
+    var base=(nodes[n].className.indexOf("sm")>=0)?"chip sm":"chip";
+    nodes[n].className=(v===cur)?base+" on"+(k==="rescan"?" r":""):base;
   }
 }
 function setText(i,k,val){
   S.runs[i][k]=val;save();
   if(k==="delay"||k==="flow"||k==="volume")refreshChips(i,k);
 }
+function setTime(i,val){
+  S.runs[i].mtime=fmtTime(val);save();
+  var el=document.getElementById("mt"+i);
+  if(el&&el.value!==S.runs[i].mtime)el.value=S.runs[i].mtime;
+}
+function nowFor(i){
+  S.runs[i].mtime=nowStr();save();
+  var el=document.getElementById("mt"+i);
+  if(el)el.value=S.runs[i].mtime;
+}
+function timeField(r,i){
+  return '<div class="fld"><span>机台序列时间（看机台上显示的采集时间）</span>'+
+    '<div class="timebar">'+
+    '<input id="mt'+i+'" inputmode="numeric" placeholder="HH:MM:SS" value="'+esc(r.mtime)+'" '+
+    'oninput="setTime('+i+',this.value)">'+
+    '<button class="btnnow" onclick="nowFor('+i+')">现在</button></div></div>';
+}
 
 function card(r,i){
-  var cls=r.type==="CBCT"?"cbct":(r.type==="DSA"?"dsa":"fl");
-  var tname=r.type==="CBCT"?"增强CBCT":(r.type==="DSA"?"造影 DSA":"透视");
-  var b='<div class="card"><div class="chead">'+
+  var cls=r.type==="CBCT"?"cbct":(r.type==="DSA"?"dsa":(r.type==="CT"?"ct":"fl"));
+  var opened=r.open!==false;
+  var b='<div class="card'+(opened?" open":"")+'"><div class="chead" onclick="toggleCard('+i+',event)">'+
     '<span class="seq '+cls+'">'+r.seq+'</span>'+
-    '<span style="font-weight:600;font-size:13px">'+tname+'</span>'+
-    '<span class="tm">'+esc(r.time)+'</span><span class="grow"></span>'+
-    '<button class="mbtn" onclick="askInsert('+i+')">↑</button>'+
-    '<button class="mbtn d" onclick="del('+i+')">删</button>'+
+    '<span class="tname">'+TYPE_NAME[r.type]+'</span>'+
+    (r.mtime?'<span class="tm">'+esc(r.mtime)+'</span>':'')+
+    (opened?'<span class="grow"></span>':'<span class="sum">'+esc(summaryOf(r))+'</span>')+
+    '<button class="mbtn" onclick="event.stopPropagation();askInsert('+i+')">↑</button>'+
+    '<button class="mbtn d" onclick="event.stopPropagation();del('+i+')">删</button>'+
     '</div><div class="body">';
 
   if(r.type==="FL"){
+    b+=timeField(r,i);
     b+='<div class="hintline">透视轮次，只作流水记录，不填参数。</div>';
+  }else if(r.type==="CT"){
+    b+='<div class="fld"><span>机台序列号</span><input inputmode="numeric" value="'+esc(r.series)+
+       '" oninput="setText('+i+',\'series\',this.value)" placeholder="机台屏幕上的序列号"></div>';
+    b+=timeField(r,i);
+    b+='<div class="hintline">平扫 CBCT：未注射对比剂，不需要流速 / 总量 / 延迟 / 浓度。</div>';
   }else{
     b+='<div class="fld"><span>导管位置</span><div class="chips">';
-    CAT.forEach(function(c){b+=chipHTML(i,"catheter",c,c,r.catheter===c)});
+    CAT.forEach(function(c){b+=chipHTML(i,"catheter",c,c,r.catheter===c,"","")});
     b+='</div></div>';
 
     if(r.type==="CBCT"){
-      b+='<div class="fld"><span>延迟（秒）· 核心参数</span><div class="chips">';
-      DELAY_P.forEach(function(c){b+=chipHTML(i,"delay",c,c,String(r.delay)===String(c))});
+      b+='<div class="fld"><span>延迟（秒）</span><div class="chips">';
+      DELAY_P.forEach(function(c){b+=chipHTML(i,"delay",c,c,String(r.delay)===String(c),"","sm")});
       b+='</div><input inputmode="decimal" placeholder="其他数值" value="'+esc(r.delay)+
          '" oninput="setText('+i+',\'delay\',this.value)"></div>';
     }
 
-    b+='<div class="row2">';
     b+='<div class="fld"><span>流速 mL/s</span><div class="chips">';
-    FLOW_P.forEach(function(c){b+=chipHTML(i,"flow",c,c,String(r.flow)===String(c))});
+    FLOW_P.forEach(function(c){b+=chipHTML(i,"flow",c,c,String(r.flow)===String(c),"","sm")});
     b+='</div><input inputmode="decimal" value="'+esc(r.flow)+
        '" oninput="setText('+i+',\'flow\',this.value)"></div>';
+
     b+='<div class="fld"><span>总量 mL</span><div class="chips">';
-    VOL_P.forEach(function(c){b+=chipHTML(i,"volume",c,c,String(r.volume)===String(c))});
+    VOL_P.forEach(function(c){b+=chipHTML(i,"volume",c,c,String(r.volume)===String(c),"","sm")});
     b+='</div><input inputmode="decimal" value="'+esc(r.volume)+
        '" oninput="setText('+i+',\'volume\',this.value)"></div>';
-    b+='</div>';
 
     if(r.type==="CBCT"){
-      b+='<div class="fld"><span>机台序列号 · 建议填</span>'+
-         '<input value="'+esc(r.series)+'" oninput="setText('+i+',\'series\',this.value)" '+
-         'placeholder="机台屏幕上显示的序列号"></div>';
+      b+='<div class="fld"><span>机台序列号</span><input inputmode="numeric" value="'+esc(r.series)+
+         '" oninput="setText('+i+',\'series\',this.value)" placeholder="机台屏幕上的序列号"></div>';
+      b+=timeField(r,i);
       b+='<div class="fld"><span>浓度 mgI/mL</span><div class="chips">';
-      CONC.forEach(function(c){b+=chipHTML(i,"conc",c,c,String(r.conc)===String(c))});
+      CONC.forEach(function(c){b+=chipHTML(i,"conc",c,c,String(r.conc)===String(c),"","sm")});
       b+='</div></div>';
-
       b+='<div class="fld"><span>采集目的</span><div class="chips">';
-      PURPOSE.forEach(function(c){b+=chipHTML(i,"purpose",c,c,r.purpose===c)});
+      PURPOSE.forEach(function(c){b+=chipHTML(i,"purpose",c,c,r.purpose===c,"","sm")});
       b+='</div></div>';
-
       if(r.purpose==="双期"){
         b+='<div class="fld"><span>时相</span><div class="chips">'+
-           chipHTML(i,"phase","第一相动脉期","第一相",r.phase==="第一相动脉期")+
-           chipHTML(i,"phase","第二相延迟期","第二相",r.phase==="第二相延迟期");
+           chipHTML(i,"phase","第一相动脉期","第一相",r.phase==="第一相动脉期","","sm")+
+           chipHTML(i,"phase","第二相延迟期","第二相",r.phase==="第二相延迟期","","sm");
         if(r.phase==="第一相动脉期"){
-          b+='<button class="chip" style="border-color:#22c55e;color:#22c55e" onclick="dupPhase('+
-             i+')">＋ 复制为第二相</button>';
+          b+='<button class="chip sm" style="border-color:#22c55e;color:#22c55e" onclick="dupPhase('+
+             i+')">＋复制为第二相</button>';
         }
         b+='</div></div>';
       }
-
       b+='<div class="fld"><span>重扫 / 废弃</span><div class="chips">'+
-         chipHTML(i,"rescan","","无",r.rescan==="")+
-         chipHTML(i,"rescan","重扫","重扫",r.rescan==="重扫","r")+
-         chipHTML(i,"rescan","废弃","废弃",r.rescan==="废弃","r")+
+         chipHTML(i,"rescan","","无",r.rescan==="","","sm")+
+         chipHTML(i,"rescan","重扫","重扫",r.rescan==="重扫","r","sm")+
+         chipHTML(i,"rescan","废弃","废弃",r.rescan==="废弃","r","sm")+
          '</div></div>';
     }else{
+      b+=timeField(r,i);
       b+='<div class="fld"><span>染色</span><div class="chips">';
-      STAIN.forEach(function(c){b+=chipHTML(i,"stain",c,c,r.stain===c)});
+      STAIN.forEach(function(c){b+=chipHTML(i,"stain",c,c,r.stain===c,"","sm")});
       b+='</div></div>';
     }
   }
@@ -402,9 +512,9 @@ function card(r,i){
 
 /* ---------------- 汇总 ---------------- */
 function renderSum(){
-  var d=0,c=0,f=0,v=0,iod=0;
+  var d=0,c=0,t=0,f=0,v=0,iod=0;
   S.runs.forEach(function(r){
-    if(r.type==="DSA")d++;else if(r.type==="CBCT")c++;else f++;
+    if(r.type==="DSA")d++;else if(r.type==="CBCT")c++;else if(r.type==="CT")t++;else f++;
     var vv=parseFloat(r.volume);
     if(!isNaN(vv)){
       v+=vv;
@@ -414,6 +524,7 @@ function renderSum(){
   });
   document.getElementById("sD").textContent=d;
   document.getElementById("sC").textContent=c;
+  document.getElementById("sT").textContent=t;
   document.getElementById("sF").textContent=f;
   document.getElementById("sV").textContent=(Math.round(v*10)/10)+"mL";
   document.getElementById("sI").textContent=(Math.round(iod*10)/10)+"g";
@@ -421,38 +532,31 @@ function renderSum(){
 }
 
 /* ---------------- 导出 ---------------- */
-var HEAD=["会话ID","患者编号","日期","设备","技师","轮次","时间","类型","导管位置",
-          "机台序列号","流速mL/s","总量mL","延迟s","浓度mgI/mL","采集目的","时相","重扫","染色","备注"];
-function rowOf(s,r){
-  return [s.id,s.pid,s.date,s.device,s.tech,r.seq,r.time,
-    r.type==="CBCT"?"CBCT":(r.type==="DSA"?"DSA":"透视"),
-    r.catheter,r.series,r.flow,r.volume,r.delay,r.conc,r.purpose,r.phase,
-    r.rescan,r.stain,r.note];
+var HEAD=["会话ID","患者编号","患者姓名","日期","设备","技师","轮次","记录时刻","机台时间",
+          "类型","导管位置","机台序列号","流速mL/s","总量mL","延迟s","浓度mgI/mL",
+          "采集目的","时相","重扫","染色","备注"];
+function rowOf(s,r,mask){
+  return [s.id,s.empi,mask?"":(s.pname||""),s.date,s.device,s.tech,r.seq,r.time,r.mtime,
+    TYPE_CAT[r.type]||r.type,r.catheter,r.series,r.flow,r.volume,r.delay,r.conc,
+    r.purpose,r.phase,r.rescan,r.stain,r.note];
 }
-function dataRows(){
-  return S.runs.map(function(r){return rowOf(S,r)});
-}
-function allSessions(){
-  return [JSON.parse(JSON.stringify(S))].concat(histData());
-}
-function allRows(){
+function dataRows(mask){return S.runs.map(function(r){return rowOf(S,r,mask)})}
+function allSessions(){return [JSON.parse(JSON.stringify(S))].concat(histData())}
+function allRows(mask){
   var out=[];
-  allSessions().forEach(function(s){
-    (s.runs||[]).forEach(function(r){out.push(rowOf(s,r))});
-  });
+  allSessions().forEach(function(s){(s.runs||[]).forEach(function(r){out.push(rowOf(s,r,mask))})});
   return out;
 }
 function csvCell(v){
   var s=String(v==null?"":v);
   return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
 }
-function toCSV(){
-  var L=[HEAD].concat(dataRows());
-  return "\ufeff"+L.map(function(r){return r.map(csvCell).join(",")}).join("\r\n");
+function buildCSV(rows){
+  return "\ufeff"+[HEAD].concat(rows).map(function(r){
+    return r.map(csvCell).join(",")}).join("\r\n");
 }
 function toTSV(){
-  var L=[HEAD].concat(dataRows());
-  return L.map(function(r){
+  return [HEAD].concat(dataRows(false)).map(function(r){
     return r.map(function(x){return String(x==null?"":x).replace(/\t/g," ")}).join("\t");
   }).join("\n");
 }
@@ -461,66 +565,10 @@ function openExport(){
   document.getElementById("shExport").classList.add("on");
 }
 function closeSheet(id){document.getElementById(id).classList.remove("on")}
-function downloadCSV(){
-  var safe=String(S.pid||"NA").replace(/[^\w\u4e00-\u9fa5-]/g,"");
-  var name="CBCT_"+safe+"_"+(S.date||todayStr())+"_"+S.id+".csv";
-  var blob=new Blob([toCSV()],{type:"text/csv;charset=utf-8"});
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);a.download=name;
-  document.body.appendChild(a);a.click();
-  setTimeout(function(){URL.revokeObjectURL(a.href);if(a.parentNode)a.parentNode.removeChild(a)},1500);
+function safeName(){
+  var n=(S.empi||S.pname||"NA").replace(/[^\w\u4e00-\u9fa5-]/g,"");
+  return n||"NA";
 }
-function copyText(){
-  var ta=document.getElementById("expArea"),ok=false;
-  ta.select();ta.setSelectionRange(0,999999);
-  try{ok=document.execCommand("copy")}catch(e){}
-  if(!ok&&navigator.clipboard){navigator.clipboard.writeText(toTSV());ok=true}
-  alert(ok?"已复制，可直接粘贴到微信或 Excel":"请长按文本框手动复制");
-}
-
-/* ---------------- 台次 ---------------- */
-function newSession(){
-  if(!S.runs.length){alert("本台还没有记录");return}
-  if(!confirm("结束本台并存档？\n存档后开一张新表（下一位患者）。"))return;
-  var h=histData();h.unshift(JSON.parse(JSON.stringify(S)));
-  localStorage.setItem(LS_HIST,JSON.stringify(h));
-  S={id:uid(),pid:"",date:todayStr(),tech:S.tech,device:S.device,runs:[]};
-  document.getElementById("pid").value="";
-  document.getElementById("date").value=S.date;
-  save();render();
-  alert("已存档。记得先点「导出」把 CSV 发出去，再开始下一位。");
-}
-function openHist(){
-  var h=histData(),box=document.getElementById("histList");
-  if(!h.length){box.innerHTML='<div class="empty">还没有存档的台次</div>'}
-  else{
-    box.innerHTML=h.map(function(s,i){
-      var iod=0;
-      (s.runs||[]).forEach(function(r){
-        var v=parseFloat(r.volume),c=parseFloat(r.conc);
-        if(r.type==="CBCT"&&!isNaN(v)&&!isNaN(c))iod+=v*c/1000;
-      });
-      return '<div class="hist"><div><b>'+esc(s.pid||"(无编号)")+'</b> '+esc(s.date)+
-        ' · '+(s.runs||[]).length+' 条 · 碘 '+Math.round(iod*10)/10+' g</div>'+
-        '<button class="mini" onclick="restore('+i+')">载入</button></div>';
-    }).join("");
-  }
-  document.getElementById("shHist").classList.add("on");
-}
-function restore(i){
-  var h=histData();
-  if(!h[i])return;
-  if(!confirm("载入这一台？当前未存档的记录会被覆盖。"))return;
-  S=h[i];save();
-  document.getElementById("pid").value=S.pid||"";
-  document.getElementById("date").value=S.date||todayStr();
-  document.getElementById("tech").value=S.tech||"";
-  document.getElementById("device").value=S.device||"飞利浦Azurion7M20";
-  render();closeSheet("shHist");
-}
-
-
-/* ---------------- 合并导出 / 备份恢复 ---------------- */
 function tsName(){
   var d=new Date();
   return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+"_"+pad(d.getHours())+pad(d.getMinutes());
@@ -531,15 +579,25 @@ function saveBlob(blob,name){
   document.body.appendChild(a);a.click();
   setTimeout(function(){URL.revokeObjectURL(a.href);if(a.parentNode)a.parentNode.removeChild(a)},1500);
 }
+function downloadCSV(mask){
+  var name="CBCT_"+safeName()+"_"+(S.date||todayStr())+(mask?"_脱敏":"")+".csv";
+  saveBlob(new Blob([buildCSV(dataRows(!!mask))],{type:"text/csv;charset=utf-8"}),name);
+}
+function copyText(){
+  var ta=document.getElementById("expArea"),ok=false;
+  ta.select();ta.setSelectionRange(0,999999);
+  try{ok=document.execCommand("copy")}catch(e){}
+  if(!ok&&navigator.clipboard){navigator.clipboard.writeText(toTSV());ok=true}
+  alert(ok?"已复制，可直接粘贴到微信或 Excel":"请长按文本框手动复制");
+}
 function exportAllCSV(){
-  var L=[HEAD].concat(allRows());
-  if(L.length<2){alert("还没有任何记录");return}
-  var csv="\ufeff"+L.map(function(r){return r.map(csvCell).join(",")}).join("\r\n");
-  saveBlob(new Blob([csv],{type:"text/csv;charset=utf-8"}),
+  var rows=allRows(false);
+  if(!rows.length){alert("还没有任何记录");return}
+  saveBlob(new Blob([buildCSV(rows)],{type:"text/csv;charset=utf-8"}),
            "CBCT_全部台次_"+tsName()+".csv");
 }
 function backupAll(){
-  var data={v:1,exported:new Date().toISOString(),sessions:allSessions()};
+  var data={v:2,exported:new Date().toISOString(),sessions:allSessions()};
   saveBlob(new Blob([JSON.stringify(data,null,1)],{type:"application/json"}),
            "CBCT_备份_"+tsName()+".json");
   alert("已导出备份，共 "+data.sessions.length+" 台。\n建议同时发一份到微信或网盘。");
@@ -562,11 +620,11 @@ function restoreAll(inp){
         if(!byId[s.id]){h2.push(s);byId[s.id]=s;merged++}
       });
       localStorage.setItem(LS_HIST,JSON.stringify(h2));
+      if(!S.runs)S.runs=[];
       save();
-      document.getElementById("pid").value=S.pid||"";
-      document.getElementById("date").value=S.date||todayStr();
-      document.getElementById("tech").value=S.tech||"";
-      document.getElementById("device").value=S.device||"飞利浦Azurion7M20";
+      ["pname","empi","date","tech","device"].forEach(function(k){
+        var el=document.getElementById(k);if(el)el.value=S[k]||"";
+      });
       render();closeSheet("shHist");
       alert("已读入 "+arr.length+" 台，新增 "+merged+" 台，历史共 "+h2.length+" 台。");
     }catch(e){alert("备份文件读取失败："+e.message)}
@@ -594,22 +652,64 @@ function forceRefresh(){
   });
 }
 
-/* 新的 Service Worker 接管后重载一次，让新版立即生效。
-   只在「换了 sw.js」时触发一次；数据每次改动都已存本地，重载不丢。 */
+/* 新 SW 接管后重载一次 */
 (function(){
   var done=false;
   try{
     if(!("serviceWorker" in navigator)||!navigator.serviceWorker.addEventListener)return;
     navigator.serviceWorker.addEventListener("controllerchange",function(){
-      if(done)return;
-      done=true;
-      if(document.visibilityState==="hidden")return;   /* 后台就不打扰 */
+      if(done)return;done=true;
+      if(document.visibilityState==="hidden")return;
       location.reload();
     });
-  }catch(e){/* 任何异常都不该影响记录功能 */}
+  }catch(e){}
 })();
 
-/* ---------------- Service Worker（离线缓存） ---------------- */
+/* ---------------- 台次 ---------------- */
+function newSession(){
+  if(!S.runs.length){alert("本台还没有记录");return}
+  if(!confirm("结束本台并存档？\n存档后开一张新表（下一位患者）。"))return;
+  var h=histData();h.unshift(JSON.parse(JSON.stringify(S)));
+  localStorage.setItem(LS_HIST,JSON.stringify(h));
+  var keepTech=S.tech,keepDev=S.device;
+  S={id:uid(),pname:"",empi:"",date:todayStr(),tech:keepTech,device:keepDev,runs:[],hdrMini:false};
+  ["pname","empi"].forEach(function(k){
+    var el=document.getElementById(k);if(el)el.value="";
+  });
+  document.getElementById("date").value=S.date;
+  save();render();
+  alert("已存档。记得先点「导出」把 CSV 发出去，再开下一位。");
+}
+function openHist(){
+  var h=histData(),box=document.getElementById("histList");
+  if(!h.length){box.innerHTML='<div class="empty">还没有存档的台次</div>'}
+  else{
+    box.innerHTML=h.map(function(s,i){
+      var iod=0;
+      (s.runs||[]).forEach(function(r){
+        var v=parseFloat(r.volume),c=parseFloat(r.conc);
+        if(r.type==="CBCT"&&!isNaN(v)&&!isNaN(c))iod+=v*c/1000;
+      });
+      return '<div class="hist"><div><b>'+esc(s.pname||"(无姓名)")+'</b> '+esc(s.empi||"")+
+        ' · '+esc(s.date)+' · '+(s.runs||[]).length+' 条 · 碘 '+Math.round(iod*10)/10+' g</div>'+
+        '<button class="mini" onclick="restore('+i+')">载入</button></div>';
+    }).join("");
+  }
+  document.getElementById("shHist").classList.add("on");
+}
+function restore(i){
+  var h=histData();
+  if(!h[i])return;
+  if(!confirm("载入这一台？当前未存档的记录会被覆盖。"))return;
+  S=h[i];if(!S.runs)S.runs=[];
+  save();
+  ["pname","empi","date","tech","device"].forEach(function(k){
+    var el=document.getElementById(k);if(el)el.value=S[k]||"";
+  });
+  render();closeSheet("shHist");
+}
+
+/* ---------------- Service Worker ---------------- */
 (function(){
   var el=document.getElementById("swState");
   function say(t){if(el)el.textContent=t}
@@ -619,12 +719,9 @@ function forceRefresh(){
         +"加主屏幕后仍可正常使用，但断网时打不开。");
     return;
   }
-  // register() resolve 只代表注册对象建好了，install 可能因为某个文件 404 而失败。
-  // 必须等 ready（有 active worker）才算真的可用，否则会误报「已启用」。
   var ready=false;
   navigator.serviceWorker.ready.then(function(){
-    ready=true;
-    say("离线缓存：已启用（断网也能打开）");
+    ready=true;say("离线缓存：已启用（断网也能打开）· "+APP_VER);
   });
   navigator.serviceWorker.register("sw.js").catch(function(e){
     say("离线缓存注册失败："+e.message);
@@ -632,7 +729,7 @@ function forceRefresh(){
   setTimeout(function(){
     if(!ready){
       say("离线缓存尚未就绪：常见原因是 icons 目录没上传全（预缓存要求每个文件都存在），"
-          +"或首次加载还没完成。不影响记录与导出，稍后重新打开本页可再检查。");
+          +"或首次加载还没完成。不影响记录与导出。");
     }
   },8000);
 })();
@@ -642,6 +739,3 @@ render();
 </script>
 </body>
 </html>
-
-
-
