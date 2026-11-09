@@ -144,10 +144,15 @@ main{padding:10px 10px 0 10px}
       </label>
     </div>
     <div class="hrow">
-      <label class="f">设备
+      <label class="f" style="flex:1.45">设备
         <select id="device">
           <option>飞利浦Azurion7M20</option><option>飞利浦另一台</option><option>西门子</option>
           <option>佳能</option><option>联影悬吊</option><option>联影落地</option>
+        </select>
+      </label>
+      <label class="f">手术
+        <select id="surgery">
+          <option>TACE</option><option>Mapping</option><option>其他</option>
         </select>
       </label>
     </div>
@@ -225,7 +230,7 @@ main{padding:10px 10px 0 10px}
 
 <script>
 "use strict";
-var APP_VER="v6";
+var APP_VER="v7";
 var LS_CUR="cbct_cur_v4", LS_HIST="cbct_hist_v4";
 
 var CAT=["肝总动脉","肝固有动脉","肝右动脉","右前支","右后支","肝左动脉","左内支","左外支",
@@ -261,10 +266,11 @@ function fmtTime(v){
 
 var S=(function(){
   try{var t=localStorage.getItem(LS_CUR);if(t)return JSON.parse(t)}catch(e){}
-  return {id:uid(),pname:"",empi:"",date:todayStr(),tech:"",device:"飞利浦Azurion7M20",
+  return {id:uid(),pname:"",empi:"",date:todayStr(),tech:"",device:"飞利浦Azurion7M20",surgery:"TACE",
           runs:[],hdrMini:false};
 })();
 if(!S.runs)S.runs=[];
+if(!S.surgery)S.surgery="TACE";   /* v6 以前的存档没这个字段 */
 
 function histData(){try{return JSON.parse(localStorage.getItem(LS_HIST)||"[]")}catch(e){return[]}}
 
@@ -278,7 +284,7 @@ function save(){
   renderSum();renderHdr();
 }
 
-["pname","empi","date","tech","device"].forEach(function(k){
+["pname","empi","date","tech","device","surgery"].forEach(function(k){
   var el=document.getElementById(k);
   el.value=S[k]||"";
   var h=function(){S[k]=el.value;save()};
@@ -296,6 +302,7 @@ function renderHdr(){
   if(S.pname)t.push(S.pname);
   if(S.empi)t.push(S.empi);
   if(S.tech)t.push(S.tech);
+  if(S.surgery)t.push(S.surgery);
   t.push(S.runs.length+" 条");
   t.push(APP_VER);
   document.getElementById("miniText").textContent=t.join(" · ");
@@ -532,11 +539,11 @@ function renderSum(){
 }
 
 /* ---------------- 导出 ---------------- */
-var HEAD=["会话ID","患者编号","患者姓名","日期","设备","技师","轮次","记录时刻","机台时间",
+var HEAD=["会话ID","患者编号","患者姓名","日期","设备","手术","技师","轮次","记录时刻","机台时间",
           "类型","导管位置","机台序列号","流速mL/s","总量mL","延迟s","浓度mgI/mL",
           "采集目的","时相","重扫","染色","备注"];
 function rowOf(s,r,mask){
-  return [s.id,s.empi,mask?"":(s.pname||""),s.date,s.device,s.tech,r.seq,r.time,r.mtime,
+  return [s.id,s.empi,mask?"":(s.pname||""),s.date,s.device,s.surgery,s.tech,r.seq,r.time,r.mtime,
     TYPE_CAT[r.type]||r.type,r.catheter,r.series,r.flow,r.volume,r.delay,r.conc,
     r.purpose,r.phase,r.rescan,r.stain,r.note];
 }
@@ -612,17 +619,22 @@ function restoreAll(inp){
       var arr=d.sessions||(Array.isArray(d)?d:[]);
       if(!arr.length)throw new Error("文件里没有台次");
       var h2=histData(),byId={};
-      h2.forEach(function(s){byId[s.id]=s});
+      h2.forEach(function(s){byId[s.id]=s;if(!s.surgery)s.surgery="TACE"});
       var merged=0;
       arr.forEach(function(s){
         if(!s||!s.id)return;
+        /* 旧版本导出的存档没有 surgery / runs，这里补齐，
+           否则推进历史列表的那些台次手术列会是空 */
+        if(!s.runs)s.runs=[];
+        if(!s.surgery)s.surgery="TACE";
         if(s.id===S.id){S=s;return}
         if(!byId[s.id]){h2.push(s);byId[s.id]=s;merged++}
       });
       localStorage.setItem(LS_HIST,JSON.stringify(h2));
       if(!S.runs)S.runs=[];
       save();
-      ["pname","empi","date","tech","device"].forEach(function(k){
+      if(!S.surgery)S.surgery="TACE";
+      ["pname","empi","date","tech","device","surgery"].forEach(function(k){
         var el=document.getElementById(k);if(el)el.value=S[k]||"";
       });
       render();closeSheet("shHist");
@@ -672,10 +684,14 @@ function newSession(){
   var h=histData();h.unshift(JSON.parse(JSON.stringify(S)));
   localStorage.setItem(LS_HIST,JSON.stringify(h));
   var keepTech=S.tech,keepDev=S.device;
-  S={id:uid(),pname:"",empi:"",date:todayStr(),tech:keepTech,device:keepDev,runs:[],hdrMini:false};
+  /* 技师与设备沿用，手术类型重置为 TACE —— 它是绝大多数情况，
+     若沿用上一台的 Mapping，很容易把整台病例的术式记错 */
+  S={id:uid(),pname:"",empi:"",date:todayStr(),tech:keepTech,device:keepDev,
+     surgery:"TACE",runs:[],hdrMini:false};
   ["pname","empi"].forEach(function(k){
     var el=document.getElementById(k);if(el)el.value="";
   });
+  document.getElementById("surgery").value=S.surgery;
   document.getElementById("date").value=S.date;
   save();render();
   alert("已存档。记得先点「导出」把 CSV 发出去，再开下一位。");
@@ -702,8 +718,9 @@ function restore(i){
   if(!h[i])return;
   if(!confirm("载入这一台？当前未存档的记录会被覆盖。"))return;
   S=h[i];if(!S.runs)S.runs=[];
+  if(!S.surgery)S.surgery="TACE";
   save();
-  ["pname","empi","date","tech","device"].forEach(function(k){
+  ["pname","empi","date","tech","device","surgery"].forEach(function(k){
     var el=document.getElementById(k);if(el)el.value=S[k]||"";
   });
   render();closeSheet("shHist");
