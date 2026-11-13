@@ -56,6 +56,7 @@ main{padding:10px 10px 0 10px}
   min-width:26px;height:24px;display:flex;align-items:center;justify-content:center;padding:0 6px;flex:none}
 .seq.dsa{background:#3b82f6;color:#fff}
 .seq.cbct{background:#22c55e;color:#06240f}
+.seq.dual{background:#84cc16;color:#12210a}
 .seq.ct{background:#2dd4bf;color:#04231f}
 .seq.fl{background:#f59e0b;color:#2b1a00}
 .chead .tname{font-weight:600;font-size:13px;flex:none}
@@ -98,11 +99,12 @@ main{padding:10px 10px 0 10px}
 #bar{position:fixed;left:0;right:0;bottom:0;padding:8px 8px calc(8px + env(safe-area-inset-bottom)) 8px;
   background:#0b1320;border-top:1px solid #2c3f5c;z-index:26}
 .btns{display:flex;gap:6px}
-.btns button{flex:1;border:none;border-radius:12px;padding:12px 2px;font-size:15px;font-weight:700;
+.btns button{flex:1;border:none;border-radius:11px;padding:12px 1px;font-size:14px;font-weight:700;
   color:#fff;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.15}
 .btns button small{font-size:9px;font-weight:400;opacity:.85}
 .bDSA{background:linear-gradient(180deg,#3b82f6,#2563eb)}
 .bCBCT{background:linear-gradient(180deg,#22c55e,#16a34a);color:#06240f!important}
+.bDUAL{background:linear-gradient(180deg,#84cc16,#65a30d);color:#12210a!important}
 .bCT{background:linear-gradient(180deg,#2dd4bf,#14b8a6);color:#04231f!important}
 .bFL{background:linear-gradient(180deg,#f59e0b,#d97706);color:#2b1a00!important}
 .tools{display:flex;gap:6px;margin-top:7px}
@@ -127,6 +129,9 @@ main{padding:10px 10px 0 10px}
 .mini{background:#16233a;border:1px solid #2c3f5c;color:#e8eef8;border-radius:7px;
   padding:6px 11px;font-size:12px}
 .empty{color:#8fa3bf;text-align:center;padding:24px 12px;font-size:13px;line-height:1.8}
+/* 五按钮时汇总栏也挤一点 */
+#sum div{font-size:8px;padding:6px 0}
+#sum b{font-size:13px}
 </style>
 </head>
 <body>
@@ -169,6 +174,7 @@ main{padding:10px 10px 0 10px}
 <div id="sum">
   <div>造影<b id="sD">0</b></div>
   <div>增强<b id="sC">0</b></div>
+  <div>双期<b id="sU">0</b></div>
   <div>平扫<b id="sT">0</b></div>
   <div>透视<b id="sF">0</b></div>
   <div>对比剂<b id="sV">0</b></div>
@@ -177,9 +183,10 @@ main{padding:10px 10px 0 10px}
 
 <div id="bar">
   <div class="btns">
-    <button class="bDSA"  onclick="add('DSA')">造影<small>2D DSA</small></button>
-    <button class="bCBCT" onclick="add('CBCT')">增强CBCT<small>旋转采集</small></button>
-    <button class="bCT"   onclick="add('CT')">平扫CBCT<small>无对比剂</small></button>
+    <button class="bDSA"  onclick="add('DSA')">造影<small>2D</small></button>
+    <button class="bCBCT" onclick="add('CBCT')">增强<small>单期</small></button>
+    <button class="bDUAL" onclick="add('DUAL')">双期<small>2次采集</small></button>
+    <button class="bCT"   onclick="add('CT')">平扫<small>无对比剂</small></button>
     <button class="bFL"   onclick="add('FL')">透视<small>无注射</small></button>
   </div>
   <div class="tools">
@@ -222,6 +229,7 @@ main{padding:10px 10px 0 10px}
     <h3>在这一条之前补插</h3>
     <button class="act" onclick="doInsert('DSA')">补插一次造影</button>
     <button class="act" style="background:#22c55e;color:#06240f" onclick="doInsert('CBCT')">补插一次增强CBCT</button>
+    <button class="act" style="background:#84cc16;color:#12210a" onclick="doInsert('DUAL')">补插一次双期CBCT</button>
     <button class="act" style="background:#2dd4bf;color:#04231f" onclick="doInsert('CT')">补插一次平扫CBCT</button>
     <button class="act" style="background:#f59e0b;color:#2b1a00" onclick="doInsert('FL')">补插一次透视</button>
     <button class="sec" onclick="closeSheet('shIns')">取消</button>
@@ -230,21 +238,27 @@ main{padding:10px 10px 0 10px}
 
 <script>
 "use strict";
-var APP_VER="v7";
+var APP_VER="v8";
 var LS_CUR="cbct_cur_v4", LS_HIST="cbct_hist_v4";
 
-var CAT=["肝总动脉","肝固有动脉","肝右动脉","右前支","右后支","肝左动脉","左内支","左外支",
-         "肝中动脉","段动脉","亚段动脉","胆囊动脉","其他动脉","仅透视未造影","无法判断"];
-var PURPOSE=["首次造影","超选后确认","栓塞后确认","双期","空跑试旋转","重扫补做"];
+/* 导管位置按手术推进顺序排列：
+   腹腔干 -> 肝总/肝固有 -> 一次超选(肝左右中、膈) -> 二次超选(左内左外、右前右后) -> 段/亚段 */
+var CAT=["腹腔干动脉","肝总动脉","肝固有动脉",
+         "肝右动脉","肝左动脉","肝中动脉","膈动脉",
+         "左内支","左外支","右前支","右后支",
+         "段动脉","亚段动脉","胆囊动脉","其他动脉",
+         "仅透视未造影","无法判断"];
+var PURPOSE=["首次造影","超选后确认","栓塞后确认","空跑试旋转","重扫补做"];
 var STAIN=["好","一般","差"];
 var CONC=[300,350,370];
 /* 流速 / 总量 / 延迟 —— 按术中实际常用值排列 */
 var FLOW_P=[0.5,0.8,1,1.2,1.5,1.8,2,2.5,3,3.5,4,5];
 var VOL_P=[3,4,5,6,7,8,9,10,15,18,20,25];
-var DELAY_P=[3,4,5,6,8,10,11,12,14,16];
+var INJ_P=[0,1,2,3,5,8];           /* 注射延迟常用值 */
+var EXP_P=[3,4,5,6,8,10,11,12,14,16]; /* 曝光延迟常用值 */
 
-var TYPE_NAME={DSA:"造影",CBCT:"增强CBCT",CT:"平扫CBCT",FL:"透视"};
-var TYPE_CAT={DSA:"DSA",CBCT:"增强CBCT",CT:"平扫CBCT",FL:"透视"};
+var TYPE_NAME={DSA:"造影",CBCT:"增强CBCT",DUAL:"双期CBCT",CT:"平扫CBCT",FL:"透视"};
+var TYPE_CAT={DSA:"DSA",CBCT:"增强CBCT",DUAL:"双期CBCT",CT:"平扫CBCT",FL:"透视"};
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function pad(n){return (n<10?"0":"")+n}
@@ -252,16 +266,16 @@ function todayStr(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()
 function nowStr(){var d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds())}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
   .replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
-/* 机台时间输入：93012 / 9:30 / 0930 / 093012 都归一成 HH:MM:SS
-   注意小时位可能是 1 位（9 点），要先补零再切，否则 93012 会变成 93:01:2 */
+/* 机台时间输入：930 / 9:30 / 0930 / 093012 都归一成 HH:MM
+   机台上只看得到分，录秒既麻烦又记不准，所以只要到分钟。
+   小时可能是 1 位（9 点），要先补零再切。 */
 function fmtTime(v){
   var s=String(v||"").replace(/\D/g,"");
   if(!s)return "";
-  if(s.length>6)s=s.slice(0,6);
-  if(s.length<=2)return s;          /* 只打了个位数，先不补，等继续输入 */
-  if(s.length===3||s.length===5)s="0"+s;   /* H MM / H MM SS -> 补零成 4 / 6 位 */
-  if(s.length===4)return s.slice(0,2)+":"+s.slice(2);
-  return s.slice(0,2)+":"+s.slice(2,4)+":"+s.slice(4,6);
+  if(s.length>4)s=s.slice(0,4);     /* 多打了秒也截掉 */
+  if(s.length===3)s="0"+s;          /* H MM -> 补零成 4 位 */
+  if(s.length<=2)return s;
+  return s.slice(0,2)+":"+s.slice(2,4);
 }
 
 var S=(function(){
@@ -271,6 +285,14 @@ var S=(function(){
 })();
 if(!S.runs)S.runs=[];
 if(!S.surgery)S.surgery="TACE";   /* v6 以前的存档没这个字段 */
+/* v7 及以前只有一个「延迟」，含义上最接近曝光延迟，迁移到 exp_delay */
+S.runs.forEach(function(r){
+  if(r.delay!==undefined && r.exp_delay===undefined){ r.exp_delay=r.delay||""; delete r.delay; }
+  if(r.exp_delay===undefined){ r.exp_delay=""; }
+  if(r.inj_delay===undefined){ r.inj_delay=""; }
+  if(r.exp_delay2===undefined){ r.exp_delay2=""; }
+  if(!r.n_acq){ r.n_acq=(r.type==="DUAL"?2:1); }
+});
 
 function histData(){try{return JSON.parse(localStorage.getItem(LS_HIST)||"[]")}catch(e){return[]}}
 
@@ -320,12 +342,17 @@ function prevParam(i){
 function mkRun(type,anchor){
   var p=anchor||{catheter:"",flow:"",volume:"",conc:"350"};
   var r={seq:0,time:nowStr(),mtime:"",type:type,
-    catheter:p.catheter||"",flow:p.flow||"",volume:p.volume||"",delay:"",
+    catheter:p.catheter||"",flow:p.flow||"",volume:p.volume||"",
+    /* 延迟拆两个：注射延迟（注射器上设的）+ 曝光延迟（机台上设的） */
+    inj_delay:"",exp_delay:"",exp_delay2:"",
+    n_acq:(type==="DUAL"?2:1),
     conc:p.conc||"350",purpose:"",phase:"",rescan:"",stain:"",note:"",
     series:"",open:true};
   if(type==="CBCT"||type==="DSA"){r.flow=r.flow||"1.5";r.volume=r.volume||"6"}
   if(type==="FL"){r.catheter="仅透视未造影";r.flow="";r.volume="";r.conc=""}
-  if(type==="CT"){r.catheter="";r.flow="";r.volume="";r.conc="";r.purpose="平扫"}
+  /* 平扫也保留导管位置（技师要据此核对导管与碘油沉积） */
+  if(type==="CT"){r.flow="";r.volume="";r.conc="";r.purpose="平扫"}
+  if(type==="DUAL"){r.flow=r.flow||"1.5";r.volume=r.volume||"6";r.purpose="双期"}
   return r;
 }
 function renumber(){S.runs.forEach(function(x,k){x.seq=k+1})}
@@ -352,14 +379,6 @@ function del(i){
   if(!confirm("删除第 "+(i+1)+" 条？"))return;
   S.runs.splice(i,1);renumber();save();render();
 }
-function dupPhase(i){
-  var src=S.runs[i];
-  var r=mkRun("CBCT",src);
-  r.purpose=src.purpose;r.phase="第二相延迟期";r.mtime=src.mtime;
-  S.runs.splice(i+1,0,r);renumber();
-  collapseAll();r.open=true;
-  save();render();
-}
 function toggleCard(i,ev){
   if(ev&&ev.target&&ev.target.tagName==="BUTTON")return;
   S.runs[i].open=!S.runs[i].open;save();render();
@@ -373,8 +392,12 @@ function summaryOf(r){
     if(r.flow)t.push(r.flow+"mL/s");
     if(r.volume)t.push(r.volume+"mL");
   }
-  if(r.type==="CBCT"&&r.delay)t.push("延迟"+r.delay+"s");
-  if(r.type==="CBCT"&&r.purpose)t.push(r.purpose);
+  if(r.type==="CBCT"||r.type==="DUAL"){
+    if(r.inj_delay!=="")t.push("注"+r.inj_delay+"s");
+    if(r.exp_delay!=="")t.push("曝"+r.exp_delay+"s");
+    if(r.type==="DUAL"&&r.exp_delay2!=="")t.push("曝2:"+r.exp_delay2+"s");
+  }
+  if((r.type==="CBCT"||r.type==="DUAL")&&r.purpose)t.push(r.purpose);
   if(r.series)t.push("序"+r.series);
   if(r.rescan)t.push(r.rescan);
   return t.join(" ");
@@ -383,8 +406,9 @@ function render(){
   var m=document.getElementById("runs");
   if(!S.runs.length){
     m.innerHTML='<div class="empty">还没有记录。<br><br>按手术实际顺序点下方按钮：<br>'+
-      '<span style="color:#3b82f6">造影</span> · <span style="color:#22c55e">增强CBCT</span> · '+
-      '<span style="color:#2dd4bf">平扫CBCT</span> · <span style="color:#f59e0b">透视</span><br><br>'+
+      '<span style="color:#3b82f6">造影</span> · <span style="color:#22c55e">增强</span> · '+
+      '<span style="color:#84cc16">双期</span> · <span style="color:#2dd4bf">平扫</span> · '+
+      '<span style="color:#f59e0b">透视</span><br><br>'+
       '造影和CBCT交错记，顺序就是手术顺序。<br>'+
       '漏了一条？点卡片上的「↑」在它前面补插。<br><br>'+
       '<span style="color:#8fa3bf">每条都要填「机台序列时间」，<br>'+
@@ -418,7 +442,8 @@ function refreshChips(i,k){
 }
 function setText(i,k,val){
   S.runs[i][k]=val;save();
-  if(k==="delay"||k==="flow"||k==="volume")refreshChips(i,k);
+  if(k==="inj_delay"||k==="exp_delay"||k==="exp_delay2"||
+     k==="flow"||k==="volume"||k==="conc")refreshChips(i,k);
 }
 function setTime(i,val){
   S.runs[i].mtime=fmtTime(val);save();
@@ -431,15 +456,25 @@ function nowFor(i){
   if(el)el.value=S.runs[i].mtime;
 }
 function timeField(r,i){
-  return '<div class="fld"><span>机台序列时间（看机台上显示的采集时间）</span>'+
+  return '<div class="fld"><span>机台序列时间 HH:MM（看机台上显示的采集时间）</span>'+
     '<div class="timebar">'+
-    '<input id="mt'+i+'" inputmode="numeric" placeholder="HH:MM:SS" value="'+esc(r.mtime)+'" '+
+    '<input id="mt'+i+'" inputmode="numeric" placeholder="HH:MM" maxlength="5" value="'+esc(r.mtime)+'" '+
     'oninput="setTime('+i+',this.value)">'+
     '<button class="btnnow" onclick="nowFor('+i+')">现在</button></div></div>';
 }
 
+/* 一个「芯片 + 手输框」的数值字段，减少重复 */
+function numField(i,key,label,presets,val,ph){
+  var b='<div class="fld"><span>'+label+'</span><div class="chips">';
+  presets.forEach(function(c){b+=chipHTML(i,key,c,c,String(val)===String(c),"","sm")});
+  b+='</div><input inputmode="decimal" value="'+esc(val)+'" placeholder="'+(ph||"其他数值")+
+     '" oninput="setText('+i+',\''+key+'\',this.value)"></div>';
+  return b;
+}
+
 function card(r,i){
-  var cls=r.type==="CBCT"?"cbct":(r.type==="DSA"?"dsa":(r.type==="CT"?"ct":"fl"));
+  var cls=r.type==="CBCT"?"cbct":(r.type==="DUAL"?"dual":
+          (r.type==="DSA"?"dsa":(r.type==="CT"?"ct":"fl")));
   var opened=r.open!==false;
   var b='<div class="card'+(opened?" open":"")+'"><div class="chead" onclick="toggleCard('+i+',event)">'+
     '<span class="seq '+cls+'">'+r.seq+'</span>'+
@@ -452,8 +487,11 @@ function card(r,i){
 
   if(r.type==="FL"){
     b+=timeField(r,i);
-    b+='<div class="hintline">透视轮次，只作流水记录，不填参数。</div>';
+    b+='<div class="hintline">透视只作流水记录。导管位置如有需要，写在下面备注里即可（非必填）。</div>';
   }else if(r.type==="CT"){
+    b+='<div class="fld"><span>导管位置</span><div class="chips">';
+    CAT.forEach(function(c){b+=chipHTML(i,"catheter",c,c,r.catheter===c,"","")});
+    b+='</div></div>';
     b+='<div class="fld"><span>机台序列号</span><input inputmode="numeric" value="'+esc(r.series)+
        '" oninput="setText('+i+',\'series\',this.value)" placeholder="机台屏幕上的序列号"></div>';
     b+=timeField(r,i);
@@ -463,42 +501,31 @@ function card(r,i){
     CAT.forEach(function(c){b+=chipHTML(i,"catheter",c,c,r.catheter===c,"","")});
     b+='</div></div>';
 
-    if(r.type==="CBCT"){
-      b+='<div class="fld"><span>延迟（秒）</span><div class="chips">';
-      DELAY_P.forEach(function(c){b+=chipHTML(i,"delay",c,c,String(r.delay)===String(c),"","sm")});
-      b+='</div><input inputmode="decimal" placeholder="其他数值" value="'+esc(r.delay)+
-         '" oninput="setText('+i+',\'delay\',this.value)"></div>';
+    /* ---- 延迟：注射延迟 + 曝光延迟 ---- */
+    if(r.type==="CBCT"||r.type==="DUAL"){
+      b+=numField(i,"inj_delay","注射延迟（秒）· 注射器上设的",INJ_P,r.inj_delay,"秒");
+      b+=numField(i,"exp_delay",
+                  (r.type==="DUAL"?"曝光延迟（秒）· 第一相":"曝光延迟（秒）· 机台上设的"),
+                  EXP_P,r.exp_delay,"秒");
+      if(r.type==="DUAL"){
+        b+=numField(i,"exp_delay2","曝光延迟（秒）· 第二相",EXP_P,r.exp_delay2,"秒");
+      }
     }
 
-    b+='<div class="fld"><span>流速 mL/s</span><div class="chips">';
-    FLOW_P.forEach(function(c){b+=chipHTML(i,"flow",c,c,String(r.flow)===String(c),"","sm")});
-    b+='</div><input inputmode="decimal" value="'+esc(r.flow)+
-       '" oninput="setText('+i+',\'flow\',this.value)"></div>';
+    b+=numField(i,"flow","流速 mL/s",FLOW_P,r.flow,"mL/s");
+    b+=numField(i,"volume","总量 mL",VOL_P,r.volume,"mL");
 
-    b+='<div class="fld"><span>总量 mL</span><div class="chips">';
-    VOL_P.forEach(function(c){b+=chipHTML(i,"volume",c,c,String(r.volume)===String(c),"","sm")});
-    b+='</div><input inputmode="decimal" value="'+esc(r.volume)+
-       '" oninput="setText('+i+',\'volume\',this.value)"></div>';
-
-    if(r.type==="CBCT"){
+    if(r.type==="CBCT"||r.type==="DUAL"){
       b+='<div class="fld"><span>机台序列号</span><input inputmode="numeric" value="'+esc(r.series)+
          '" oninput="setText('+i+',\'series\',this.value)" placeholder="机台屏幕上的序列号"></div>';
       b+=timeField(r,i);
-      b+='<div class="fld"><span>浓度 mgI/mL</span><div class="chips">';
-      CONC.forEach(function(c){b+=chipHTML(i,"conc",c,c,String(r.conc)===String(c),"","sm")});
-      b+='</div></div>';
+      b+=numField(i,"conc","浓度 mgI/mL",CONC,r.conc,"mgI/mL");
       b+='<div class="fld"><span>采集目的</span><div class="chips">';
       PURPOSE.forEach(function(c){b+=chipHTML(i,"purpose",c,c,r.purpose===c,"","sm")});
       b+='</div></div>';
-      if(r.purpose==="双期"){
-        b+='<div class="fld"><span>时相</span><div class="chips">'+
-           chipHTML(i,"phase","第一相动脉期","第一相",r.phase==="第一相动脉期","","sm")+
-           chipHTML(i,"phase","第二相延迟期","第二相",r.phase==="第二相延迟期","","sm");
-        if(r.phase==="第一相动脉期"){
-          b+='<button class="chip sm" style="border-color:#22c55e;color:#22c55e" onclick="dupPhase('+
-             i+')">＋复制为第二相</button>';
-        }
-        b+='</div></div>';
+      if(r.type==="DUAL"){
+        b+='<div class="hintline">一次双期 = 机台上做 2 次旋转采集（对应 2 个 DICOM 序列）。'
+          +'本行按「一次注射 + 两个曝光延迟」记录，导出时「对应采集数」会自动记 2。</div>';
       }
       b+='<div class="fld"><span>重扫 / 废弃</span><div class="chips">'+
          chipHTML(i,"rescan","","无",r.rescan==="","","sm")+
@@ -519,18 +546,23 @@ function card(r,i){
 
 /* ---------------- 汇总 ---------------- */
 function renderSum(){
-  var d=0,c=0,t=0,f=0,v=0,iod=0;
+  var d=0,c=0,u=0,t=0,f=0,v=0,iod=0;
   S.runs.forEach(function(r){
-    if(r.type==="DSA")d++;else if(r.type==="CBCT")c++;else if(r.type==="CT")t++;else f++;
+    if(r.type==="DSA")d++;
+    else if(r.type==="CBCT")c++;
+    else if(r.type==="DUAL")u++;
+    else if(r.type==="CT")t++;
+    else f++;
     var vv=parseFloat(r.volume);
     if(!isNaN(vv)){
       v+=vv;
       var cc=parseFloat(r.conc);
-      if(r.type==="CBCT"&&!isNaN(cc))iod+=vv*cc/1000;
+      if((r.type==="CBCT"||r.type==="DUAL")&&!isNaN(cc))iod+=vv*cc/1000;
     }
   });
   document.getElementById("sD").textContent=d;
   document.getElementById("sC").textContent=c;
+  document.getElementById("sU").textContent=u;
   document.getElementById("sT").textContent=t;
   document.getElementById("sF").textContent=f;
   document.getElementById("sV").textContent=(Math.round(v*10)/10)+"mL";
@@ -540,11 +572,13 @@ function renderSum(){
 
 /* ---------------- 导出 ---------------- */
 var HEAD=["会话ID","患者编号","患者姓名","日期","设备","手术","技师","轮次","记录时刻","机台时间",
-          "类型","导管位置","机台序列号","流速mL/s","总量mL","延迟s","浓度mgI/mL",
+          "类型","导管位置","机台序列号","流速mL/s","总量mL",
+          "注射延迟s","曝光延迟s","第二相曝光延迟s","对应采集数","浓度mgI/mL",
           "采集目的","时相","重扫","染色","备注"];
 function rowOf(s,r,mask){
   return [s.id,s.empi,mask?"":(s.pname||""),s.date,s.device,s.surgery,s.tech,r.seq,r.time,r.mtime,
-    TYPE_CAT[r.type]||r.type,r.catheter,r.series,r.flow,r.volume,r.delay,r.conc,
+    TYPE_CAT[r.type]||r.type,r.catheter,r.series,r.flow,r.volume,
+    r.inj_delay,r.exp_delay,r.exp_delay2,(r.n_acq||1),r.conc,
     r.purpose,r.phase,r.rescan,r.stain,r.note];
 }
 function dataRows(mask){return S.runs.map(function(r){return rowOf(S,r,mask)})}
@@ -704,7 +738,7 @@ function openHist(){
       var iod=0;
       (s.runs||[]).forEach(function(r){
         var v=parseFloat(r.volume),c=parseFloat(r.conc);
-        if(r.type==="CBCT"&&!isNaN(v)&&!isNaN(c))iod+=v*c/1000;
+        if((r.type==="CBCT"||r.type==="DUAL")&&!isNaN(v)&&!isNaN(c))iod+=v*c/1000;
       });
       return '<div class="hist"><div><b>'+esc(s.pname||"(无姓名)")+'</b> '+esc(s.empi||"")+
         ' · '+esc(s.date)+' · '+(s.runs||[]).length+' 条 · 碘 '+Math.round(iod*10)/10+' g</div>'+
