@@ -84,6 +84,7 @@ main{padding:10px 10px 0 10px}
 .chip.on.r{background:#ef4444;border-color:#ef4444;color:#fff}
 .timebar{display:flex;gap:7px;align-items:stretch}
 .timebar input{flex:1;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.timebar input.bad{border-color:#ef4444;color:#fca5a5}
 .btnnow{flex:none;background:#16233a;border:1px solid #2c3f5c;color:#8fa3bf;
   border-radius:8px;padding:0 12px;font-size:12px}
 .btnnow:active{background:#22334f;color:#e8eef8}
@@ -238,7 +239,7 @@ main{padding:10px 10px 0 10px}
 
 <script>
 "use strict";
-var APP_VER="v8";
+var APP_VER="v8.1";
 var LS_CUR="cbct_cur_v4", LS_HIST="cbct_hist_v4";
 
 /* 导管位置按手术推进顺序排列：
@@ -266,16 +267,33 @@ function todayStr(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()
 function nowStr(){var d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds())}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
   .replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
-/* 机台时间输入：930 / 9:30 / 0930 / 093012 都归一成 HH:MM
-   机台上只看得到分，录秒既麻烦又记不准，所以只要到分钟。
-   小时可能是 1 位（9 点），要先补零再切。 */
+/* 机台时间输入 —— 打字过程中调用，只插冒号，不做任何补零/猜测。
+   按 1→1→1→2 得到 "1" → "11" → "11:1" → "11:12"，
+   绝不能在 3 位时补零，否则第 4 位会被截断（曾经的 bug：1112 变成 01:11）。 */
 function fmtTime(v){
   var s=String(v||"").replace(/\D/g,"");
   if(!s)return "";
-  if(s.length>4)s=s.slice(0,4);     /* 多打了秒也截掉 */
-  if(s.length===3)s="0"+s;          /* H MM -> 补零成 4 位 */
+  if(s.length>4)s=s.slice(0,4);
   if(s.length<=2)return s;
   return s.slice(0,2)+":"+s.slice(2,4);
+}
+
+/* 失焦时调用：这时才允许把 3 位按 H MM 补零（930 -> 09:30）。
+   1~2 位视为没填完，保留原样，交给汇总脚本的「时间格式不对」检查去提示。 */
+function normTime(v){
+  var s=String(v||"").replace(/\D/g,"");
+  if(!s)return "";
+  if(s.length>4)s=s.slice(0,4);
+  if(s.length===3)s="0"+s;
+  if(s.length<=2)return s;
+  return s.slice(0,2)+":"+s.slice(2,4);
+}
+
+/* HH:MM 是否合法（00-23 : 00-59） */
+function timeValid(v){
+  var m=/^(\d\d):(\d\d)$/.exec(String(v||""));
+  if(!m)return false;
+  return parseInt(m[1],10)<24 && parseInt(m[2],10)<60;
 }
 
 var S=(function(){
@@ -450,16 +468,27 @@ function setTime(i,val){
   var el=document.getElementById("mt"+i);
   if(el&&el.value!==S.runs[i].mtime)el.value=S.runs[i].mtime;
 }
+/* 离开输入框：补零 + 校验，非法值标红但不清空（用户能看见自己填了什么） */
+function blurTime(i,el){
+  var v=normTime(el.value);
+  S.runs[i].mtime=v;save();
+  el.value=v;
+  if(v && !timeValid(v)){ el.classList.add("bad"); }
+  else { el.classList.remove("bad"); }
+}
 function nowFor(i){
-  S.runs[i].mtime=nowStr();save();
+  /* 机台时间是 HH:MM，必须截掉秒，否则会被 timeValid 判成非法 */
+  S.runs[i].mtime=nowStr().slice(0,5);save();
   var el=document.getElementById("mt"+i);
-  if(el)el.value=S.runs[i].mtime;
+  if(el){el.value=S.runs[i].mtime;el.classList.remove("bad");}
 }
 function timeField(r,i){
-  return '<div class="fld"><span>机台序列时间 HH:MM（看机台上显示的采集时间）</span>'+
+  var bad=(r.mtime && !timeValid(r.mtime))?" bad":"";
+  return '<div class="fld"><span>机台序列时间 HH:MM（看机台上显示的采集时间，直接按 1112）</span>'+
     '<div class="timebar">'+
-    '<input id="mt'+i+'" inputmode="numeric" placeholder="HH:MM" maxlength="5" value="'+esc(r.mtime)+'" '+
-    'oninput="setTime('+i+',this.value)">'+
+    '<input id="mt'+i+'" class="'+(bad?'bad':'')+'" inputmode="numeric" placeholder="HH:MM" '+
+    'maxlength="5" value="'+esc(r.mtime)+'" '+
+    'oninput="setTime('+i+',this.value)" onblur="blurTime('+i+',this)">'+
     '<button class="btnnow" onclick="nowFor('+i+')">现在</button></div></div>';
 }
 
