@@ -1,6 +1,9 @@
 /* 增强CBCT术中记录 —— 离线缓存
  *
- * 策略（v3）：
+ * ⚠ 维护规则：每次改动 index.html，必须同时把下面的 CACHE 版本号 +1，
+ *   并把本文件一起上传。否则浏览器判定「SW 没变」，手机上永远看不到新版。
+ *
+ * 策略（v4）：
  *   导航请求（HTML）  → 网络优先，失败回退缓存。这样一上传新版本，下次打开就是新的，
  *                      同时断网还能用。
  *   静态资源（图标等）→ 缓存优先，避免每次重下。
@@ -8,7 +11,7 @@
  * v1 是纯 cache-first：只要 sw.js 字节没变，index.html 就永远读旧缓存，
  * 手机端根本看不到更新。改版本号或改本文件才会触发更新，所以 CACHE 名必须随版本递增。
  */
-const CACHE = "cbct-record-v3";
+const CACHE = "cbct-record-v4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -45,7 +48,7 @@ self.addEventListener("fetch", (e) => {
   if (isDoc) {
     /* 网络优先：拿得到就用最新的，拿不到用缓存 */
     e.respondWith(
-      fetch(req)
+      fetch(req, { cache: "no-store" })   /* 必须绕过 HTTP 缓存，不然会拿到旧 HTML */
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});

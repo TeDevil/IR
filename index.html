@@ -220,7 +220,8 @@ main{padding:10px 10px 0 10px}
     <button class="sec" onclick="backupAll()">备份全部（JSON，可换手机恢复）</button>
     <button class="sec" onclick="document.getElementById('fileIn').click()">从备份恢复</button>
     <input type="file" id="fileIn" accept=".json,application/json" style="display:none" onchange="restoreAll(this)">
-    <button class="sec" onclick="forceRefresh()">强制更新到最新版（清离线缓存，数据不丢）</button>
+    <button class="sec" onclick="checkUpdate()">检查更新（不删任何数据，先试这个）</button>
+    <button class="sec" onclick="forceRefresh()">强制重装离线缓存（仍不动你的记录）</button>
     <button class="sec" onclick="closeSheet('shHist')">关闭</button>
   </div>
 </div>
@@ -239,7 +240,7 @@ main{padding:10px 10px 0 10px}
 
 <script>
 "use strict";
-var APP_VER="v8.1";
+var APP_VER="v8.2";
 var LS_CUR="cbct_cur_v4", LS_HIST="cbct_hist_v4";
 
 /* 导管位置按手术推进顺序排列：
@@ -706,6 +707,27 @@ function restoreAll(inp){
   };
   rd.readAsText(f);
   inp.value="";
+}
+
+/* ---------------- 检查更新（无损） ---------------- */
+function checkUpdate(){
+  if(!("serviceWorker" in navigator)){
+    alert("这个浏览器不支持离线缓存。直接刷新页面即可。");
+    return;
+  }
+  navigator.serviceWorker.getRegistration().then(function(reg){
+    if(!reg){
+      alert("还没注册离线缓存（可能是第一次打开）。直接刷新页面即可。");
+      return;
+    }
+    return reg.update().then(function(){
+      alert("已向服务器检查更新。\n\n若有新版本，它会自动接管并刷新页面；\n"
+            +"若页面没变化，说明已是当前最新版（看右下角版本号）。");
+    });
+  }).catch(function(e){
+    alert("检查更新失败：" + (e && e.message ? e.message : e)
+          + "\n可以先刷新页面，或点下面的「强制重装离线缓存」。");
+  });
 }
 
 /* ---------------- 强制更新 ---------------- */
