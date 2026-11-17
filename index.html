@@ -129,6 +129,12 @@ main{padding:10px 10px 0 10px}
 .hist b{color:#e8eef8;font-size:14px}
 .mini{background:#16233a;border:1px solid #2c3f5c;color:#e8eef8;border-radius:7px;
   padding:6px 11px;font-size:12px}
+.mini.d{background:#2a1620;border-color:#6b2740;color:#ff9db0}
+.mini.g{background:#12261a;border-color:#2f6b45;color:#8fe0b0}
+.hist .btns2{display:flex;gap:6px;flex:none}
+.hist .info{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dup{display:inline-block;font-size:10px;padding:1px 6px;border-radius:999px;
+  background:#3a2a12;color:#ffce7a;border:1px solid #6b5427;margin-left:4px}
 .empty{color:#8fa3bf;text-align:center;padding:24px 12px;font-size:13px;line-height:1.8}
 /* 五按钮时汇总栏也挤一点 */
 #sum div{font-size:8px;padding:6px 0}
@@ -215,6 +221,7 @@ main{padding:10px 10px 0 10px}
   <div class="pane">
     <h3>历史台次与备份</h3>
     <div id="histList"></div>
+    <div id="trashBar"></div>
     <div class="hintline" id="swState" style="margin-top:10px"></div>
     <button class="act" onclick="exportAllCSV()">导出全部台次 CSV（合并成一个文件）</button>
     <button class="sec" onclick="backupAll()">备份全部（JSON，可换手机恢复）</button>
@@ -240,8 +247,8 @@ main{padding:10px 10px 0 10px}
 
 <script>
 "use strict";
-var APP_VER="v8.2";
-var LS_CUR="cbct_cur_v4", LS_HIST="cbct_hist_v4";
+var APP_VER="v8.3";
+var LS_CUR="cbct_cur_v4", LS_HIST="cbct_hist_v4", LS_TRASH="cbct_trash_v1";
 
 /* 导管位置按手术推进顺序排列：
    腹腔干 -> 肝总/肝固有 -> 一次超选(肝左右中、膈) -> 二次超选(左内左外、右前右后) -> 段/亚段 */
@@ -314,6 +321,8 @@ S.runs.forEach(function(r){
 });
 
 function histData(){try{return JSON.parse(localStorage.getItem(LS_HIST)||"[]")}catch(e){return[]}}
+function trashData(){try{return JSON.parse(localStorage.getItem(LS_TRASH)||"[]")}catch(e){return[]}}
+function saveTrash(t){try{localStorage.setItem(LS_TRASH,JSON.stringify(t))}catch(e){}}
 
 var saveTimer=null;
 function save(){
@@ -781,22 +790,144 @@ function newSession(){
   save();render();
   alert("已存档。记得先点「导出」把 CSV 发出去，再开下一位。");
 }
-function openHist(){
-  var h=histData(),box=document.getElementById("histList");
+var histMode="list";      /* "list" 或 "trash" */
+
+function sessionIodine(s){
+  var iod=0;
+  (s.runs||[]).forEach(function(r){
+    var v=parseFloat(r.volume),c=parseFloat(r.conc);
+    if((r.type==="CBCT"||r.type==="DUAL")&&!isNaN(v)&&!isNaN(c))iod+=v*c/1000;
+  });
+  return Math.round(iod*10)/10;
+}
+
+/* 找「疑重复」：姓名+编号+日期+条数 完全相同。多半是同一台被存档了多次，
+   删之前先看清哪几个是重复的，别删错。 */
+function dupFlags(h){
+  var seen={},dup={};
+  h.forEach(function(s,i){
+    var k=(s.pname||"")+"|"+(s.empi||"")+"|"+(s.date||"")+"|"+((s.runs||[]).length);
+    if(seen[k]!==undefined){dup[i]=1;dup[seen[k]]=1}else seen[k]=i;
+  });
+  return dup;
+}
+
+function renderHistSheet(){
+  var box=document.getElementById("histList");
+  var bar=document.getElementById("trashBar");
+  if(!box)return;
+
+  if(histMode==="trash"){
+    var t=trashData();
+    if(bar)bar.innerHTML="";
+    if(!t.length){
+      box.innerHTML='<div class="empty">回收站是空的</div>'+
+        '<button class="sec" onclick="trashBack()">← 返回台次列表</button>';
+    }else{
+      box.innerHTML='<div class="hintline" style="margin:0 0 6px">回收站 '+t.length+
+        ' 条（恢复后回到台次列表）</div>'+
+        t.map(function(s,i){
+          return '<div class="hist"><div class="info"><b>'+esc(s.pname||"(无姓名)")+'</b> '+
+            esc(s.empi||"")+' · '+esc(s.date)+' · '+(s.runs||[]).length+' 条'+
+            (s._deletedAt?'<br><span style="font-size:11px;color:#6b7a94">删除于 '+esc(s._deletedAt)+'</span>':'')+
+            '</div><div class="btns2">'+
+            '<button class="mini g" onclick="trashRestore('+i+')">恢复</button>'+
+            '<button class="mini d" onclick="trashPurge('+i+')">彻底删</button>'+
+            '</div></div>';
+        }).join("")+
+        '<button class="sec" onclick="trashClear()">清空回收站（不可恢复）</button>'+
+        '<button class="sec" onclick="trashBack()">← 返回台次列表</button>';
+    }
+    return;
+  }
+
+  var h=histData();
   if(!h.length){box.innerHTML='<div class="empty">还没有存档的台次</div>'}
   else{
+    var dup=dupFlags(h);
     box.innerHTML=h.map(function(s,i){
-      var iod=0;
-      (s.runs||[]).forEach(function(r){
-        var v=parseFloat(r.volume),c=parseFloat(r.conc);
-        if((r.type==="CBCT"||r.type==="DUAL")&&!isNaN(v)&&!isNaN(c))iod+=v*c/1000;
-      });
-      return '<div class="hist"><div><b>'+esc(s.pname||"(无姓名)")+'</b> '+esc(s.empi||"")+
-        ' · '+esc(s.date)+' · '+(s.runs||[]).length+' 条 · 碘 '+Math.round(iod*10)/10+' g</div>'+
-        '<button class="mini" onclick="restore('+i+')">载入</button></div>';
+      return '<div class="hist"><div class="info"><b>'+esc(s.pname||"(无姓名)")+'</b> '+
+        esc(s.empi||"")+' · '+esc(s.date)+' · '+(s.runs||[]).length+' 条 · 碘 '+
+        sessionIodine(s)+' g'+(dup[i]?'<span class="dup">疑重复</span>':'')+
+        '</div><div class="btns2">'+
+        '<button class="mini" onclick="restore('+i+')">载入</button>'+
+        '<button class="mini d" onclick="histDel('+i+')">删</button>'+
+        '</div></div>';
     }).join("");
   }
+  var t2=trashData();
+  if(bar){
+    bar.innerHTML = t2.length
+      ? '<button class="sec" style="margin-top:10px" onclick="trashOpen()">🗑 回收站 '+t2.length+' 条（可恢复）</button>'
+      : '';
+  }
+}
+
+function openHist(){
+  histMode="list";
+  renderHistSheet();
   document.getElementById("shHist").classList.add("on");
+}
+
+/* ---------------- 删除 / 回收站 ---------------- */
+function histDel(i){
+  var h=histData(),s=h[i];
+  if(!s)return;
+  var n=(s.runs||[]).length;
+  var msg="删除这一台？\n\n"+(s.pname||"(无姓名)")+" "+(s.empi||"")+"\n"+
+          (s.date||"")+" · "+n+" 条 · 碘 "+sessionIodine(s)+" g\n\n"+
+          "删掉后进回收站，还可以恢复。";
+  if(S.id&&S.id===s.id) msg+="\n\n⚠ 这一台正是当前载入的。删除历史不会清空上面正在编辑的内容。";
+  if(!confirm(msg))return;
+
+  var t=trashData();
+  var cp=JSON.parse(JSON.stringify(s));
+  cp._deletedAt=todayStr()+" "+nowStr();
+  t.unshift(cp);
+  saveTrash(t);
+
+  h.splice(i,1);
+  try{localStorage.setItem(LS_HIST,JSON.stringify(h))}catch(e){}
+  renderHistSheet();
+}
+
+function trashOpen(){ histMode="trash"; renderHistSheet(); }
+function trashBack(){ histMode="list"; renderHistSheet(); }
+
+function trashRestore(i){
+  var t=trashData(),s=t[i];
+  if(!s)return;
+  var msg="把这一台恢复到台次列表？\n\n"+(s.pname||"(无姓名)")+" "+(s.empi||"")+
+          " · "+(s.date||"");
+  if(!confirm(msg))return;
+  delete s._deletedAt;
+  var h=histData();
+  h.unshift(s);
+  try{localStorage.setItem(LS_HIST,JSON.stringify(h))}catch(e){}
+  t.splice(i,1);
+  saveTrash(t);
+  alert("已恢复。");
+  histMode="list";
+  renderHistSheet();
+}
+
+function trashPurge(i){
+  var t=trashData(),s=t[i];
+  if(!s)return;
+  if(!confirm("彻底删除？这一步不能撤销。\n\n"+(s.pname||"(无姓名)")+
+              " · "+(s.date||"")+" · "+((s.runs||[]).length)+" 条")) return;
+  t.splice(i,1);
+  saveTrash(t);
+  renderHistSheet();
+}
+
+function trashClear(){
+  var t=trashData();
+  if(!t.length)return;
+  if(!confirm("清空回收站？\n\n共 "+t.length+" 条，清空后无法恢复。\n"+
+              "（如果只是想留个备份，先点「备份全部 JSON」）")) return;
+  saveTrash([]);
+  renderHistSheet();
 }
 function restore(i){
   var h=histData();
