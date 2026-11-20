@@ -247,7 +247,7 @@ main{padding:10px 10px 0 10px}
 
 <script>
 "use strict";
-var APP_VER="v8.3";
+var APP_VER="v8.5";
 var LS_CUR="cbct_cur_v4", LS_HIST="cbct_hist_v4", LS_TRASH="cbct_trash_v1";
 
 /* 导管位置按手术推进顺序排列：
@@ -316,7 +316,15 @@ S.runs.forEach(function(r){
   if(r.delay!==undefined && r.exp_delay===undefined){ r.exp_delay=r.delay||""; delete r.delay; }
   if(r.exp_delay===undefined){ r.exp_delay=""; }
   if(r.inj_delay===undefined){ r.inj_delay=""; }
-  if(r.exp_delay2===undefined){ r.exp_delay2=""; }
+  if(r.series2===undefined){ r.series2=""; }
+  /* v8.3 及以前双期多记了一个「第二相曝光延迟」。经确认双期只有两个延迟，
+     两期由机器序列设置自动生成。旧值不丢，挪进备注后删掉字段。 */
+  if(r.exp_delay2!==undefined){
+    if(String(r.exp_delay2)!==""){
+      r.note=(r.note?r.note+"；":"")+"旧记录·第二相曝光延迟"+r.exp_delay2+"s";
+    }
+    delete r.exp_delay2;
+  }
   if(!r.n_acq){ r.n_acq=(r.type==="DUAL"?2:1); }
 });
 
@@ -372,7 +380,7 @@ function mkRun(type,anchor){
   var r={seq:0,time:nowStr(),mtime:"",type:type,
     catheter:p.catheter||"",flow:p.flow||"",volume:p.volume||"",
     /* 延迟拆两个：注射延迟（注射器上设的）+ 曝光延迟（机台上设的） */
-    inj_delay:"",exp_delay:"",exp_delay2:"",
+    inj_delay:"",exp_delay:"",series2:"",
     n_acq:(type==="DUAL"?2:1),
     conc:p.conc||"350",purpose:"",phase:"",rescan:"",stain:"",note:"",
     series:"",open:true};
@@ -423,10 +431,11 @@ function summaryOf(r){
   if(r.type==="CBCT"||r.type==="DUAL"){
     if(r.inj_delay!=="")t.push("注"+r.inj_delay+"s");
     if(r.exp_delay!=="")t.push("曝"+r.exp_delay+"s");
-    if(r.type==="DUAL"&&r.exp_delay2!=="")t.push("曝2:"+r.exp_delay2+"s");
+
   }
   if((r.type==="CBCT"||r.type==="DUAL")&&r.purpose)t.push(r.purpose);
-  if(r.series)t.push("序"+r.series);
+  if(r.type==="DUAL"&&r.phase)t.push("第二相"+r.phase);
+  if(r.series)t.push("序"+r.series+(r.series2?"/"+r.series2:""));
   if(r.rescan)t.push(r.rescan);
   return t.join(" ");
 }
@@ -470,7 +479,7 @@ function refreshChips(i,k){
 }
 function setText(i,k,val){
   S.runs[i][k]=val;save();
-  if(k==="inj_delay"||k==="exp_delay"||k==="exp_delay2"||
+  if(k==="inj_delay"||k==="exp_delay"||
      k==="flow"||k==="volume"||k==="conc")refreshChips(i,k);
 }
 function setTime(i,val){
@@ -540,31 +549,45 @@ function card(r,i){
     CAT.forEach(function(c){b+=chipHTML(i,"catheter",c,c,r.catheter===c,"","")});
     b+='</div></div>';
 
-    /* ---- 延迟：注射延迟 + 曝光延迟 ---- */
+    /* ---- 延迟：只有两个。双期也是两个（两期由机器序列设置自动生成） ---- */
     if(r.type==="CBCT"||r.type==="DUAL"){
       b+=numField(i,"inj_delay","注射延迟（秒）· 注射器上设的",INJ_P,r.inj_delay,"秒");
-      b+=numField(i,"exp_delay",
-                  (r.type==="DUAL"?"曝光延迟（秒）· 第一相":"曝光延迟（秒）· 机台上设的"),
-                  EXP_P,r.exp_delay,"秒");
-      if(r.type==="DUAL"){
-        b+=numField(i,"exp_delay2","曝光延迟（秒）· 第二相",EXP_P,r.exp_delay2,"秒");
-      }
+      b+=numField(i,"exp_delay","曝光延迟（秒）· 机台上设的",EXP_P,r.exp_delay,"秒");
     }
 
     b+=numField(i,"flow","流速 mL/s",FLOW_P,r.flow,"mL/s");
     b+=numField(i,"volume","总量 mL",VOL_P,r.volume,"mL");
 
     if(r.type==="CBCT"||r.type==="DUAL"){
-      b+='<div class="fld"><span>机台序列号</span><input inputmode="numeric" value="'+esc(r.series)+
-         '" oninput="setText('+i+',\'series\',this.value)" placeholder="机台屏幕上的序列号"></div>';
+      if(r.type==="DUAL"){
+        b+='<div class="fld"><span>机台序列号① · 第一相（动脉期）</span>'
+          +'<input inputmode="numeric" value="'+esc(r.series)+
+          '" oninput="setText('+i+',\'series\',this.value)" placeholder="第一个序列号"></div>';
+        b+='<div class="fld"><span>机台序列号② · 第二相（实质期/静脉期）</span>'
+          +'<input inputmode="numeric" value="'+esc(r.series2)+
+          '" oninput="setText('+i+',\'series2\',this.value)" placeholder="第二个序列号"></div>';
+        /* 第二相到底是实质期还是静脉期，从序列号推不出来，只能当场选。
+           不设默认值：设错会静默污染数据，留空表示"未记录"。 */
+        b+='<div class="fld"><span>第二相时相（看机台协议）</span><div class="chips">'
+          +chipHTML(i,"phase","实质期","实质期",r.phase==="实质期","","sm")
+          +chipHTML(i,"phase","静脉期","静脉期",r.phase==="静脉期","","sm")
+          +'</div></div>';
+      }else{
+        b+='<div class="fld"><span>机台序列号</span><input inputmode="numeric" value="'+esc(r.series)+
+           '" oninput="setText('+i+',\'series\',this.value)" placeholder="机台屏幕上的序列号"></div>';
+      }
       b+=timeField(r,i);
       b+=numField(i,"conc","浓度 mgI/mL",CONC,r.conc,"mgI/mL");
       b+='<div class="fld"><span>采集目的</span><div class="chips">';
-      PURPOSE.forEach(function(c){b+=chipHTML(i,"purpose",c,c,r.purpose===c,"","sm")});
+      /* 双期默认 purpose = 双期，但 PURPOSE 列表里没有它，芯片会显示空白。
+         这里给双期临时补一个芯片，让默认值可见。 */
+      var pu=(r.type==="DUAL")?["双期"].concat(PURPOSE):PURPOSE;
+      pu.forEach(function(c){b+=chipHTML(i,"purpose",c,c,r.purpose===c,"","sm")});
       b+='</div></div>';
       if(r.type==="DUAL"){
-        b+='<div class="hintline">一次双期 = 机台上做 2 次旋转采集（对应 2 个 DICOM 序列）。'
-          +'本行按「一次注射 + 两个曝光延迟」记录，导出时「对应采集数」会自动记 2。</div>';
+        b+='<div class="hintline">一次双期 = 一次注射 + 机器自动做 2 次采集，'
+          +'生成 2 个 CBCT 序列（第一相动脉期、第二相实质期/静脉期）。'
+          +'两个延迟只填「注射延迟 + 曝光延迟」，导出时「对应采集数」自动记 2。</div>';
       }
       b+='<div class="fld"><span>重扫 / 废弃</span><div class="chips">'+
          chipHTML(i,"rescan","","无",r.rescan==="","","sm")+
@@ -611,13 +634,13 @@ function renderSum(){
 
 /* ---------------- 导出 ---------------- */
 var HEAD=["会话ID","患者编号","患者姓名","日期","设备","手术","技师","轮次","记录时刻","机台时间",
-          "类型","导管位置","机台序列号","流速mL/s","总量mL",
-          "注射延迟s","曝光延迟s","第二相曝光延迟s","对应采集数","浓度mgI/mL",
+          "类型","导管位置","机台序列号①","机台序列号②","流速mL/s","总量mL",
+          "注射延迟s","曝光延迟s","对应采集数","浓度mgI/mL",
           "采集目的","时相","重扫","染色","备注"];
 function rowOf(s,r,mask){
   return [s.id,s.empi,mask?"":(s.pname||""),s.date,s.device,s.surgery,s.tech,r.seq,r.time,r.mtime,
-    TYPE_CAT[r.type]||r.type,r.catheter,r.series,r.flow,r.volume,
-    r.inj_delay,r.exp_delay,r.exp_delay2,(r.n_acq||1),r.conc,
+    TYPE_CAT[r.type]||r.type,r.catheter,r.series,r.series2,r.flow,r.volume,
+    r.inj_delay,r.exp_delay,(r.n_acq||1),r.conc,
     r.purpose,r.phase,r.rescan,r.stain,r.note];
 }
 function dataRows(mask){return S.runs.map(function(r){return rowOf(S,r,mask)})}
