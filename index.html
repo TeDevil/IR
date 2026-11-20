@@ -132,6 +132,15 @@ main{padding:10px 10px 0 10px}
 .mini.d{background:#2a1620;border-color:#6b2740;color:#ff9db0}
 .mini.g{background:#12261a;border-color:#2f6b45;color:#8fe0b0}
 .hist .btns2{display:flex;gap:6px;flex:none}
+.hist .ck{display:flex;align-items:center;padding-right:2px;flex:none}
+.hist .ck input{width:18px;height:18px;margin:0}
+.ghead{display:flex;align-items:center;gap:8px;font-size:12px;color:#8fa3bf;
+  border-bottom:1px solid #2c3f5c;padding:12px 0 6px;margin-top:2px}
+.ghead input{width:18px;height:18px;margin:0}
+.ghead b{color:#c9d8ea;font-size:13px}
+.selbar{display:flex;align-items:center;gap:8px;margin-top:12px;
+  font-size:12px;color:#8fa3bf;flex-wrap:wrap}
+.selbar .selcount{flex:1;text-align:center;min-width:80px}
 .hist .info{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dup{display:inline-block;font-size:10px;padding:1px 6px;border-radius:999px;
   background:#3a2a12;color:#ffce7a;border:1px solid #6b5427;margin-left:4px}
@@ -221,6 +230,7 @@ main{padding:10px 10px 0 10px}
   <div class="pane">
     <h3>历史台次与备份</h3>
     <div id="histList"></div>
+    <div id="selBar"></div>
     <div id="trashBar"></div>
     <div class="hintline" id="swState" style="margin-top:10px"></div>
     <button class="act" onclick="exportAllCSV()">导出全部台次 CSV（合并成一个文件）</button>
@@ -247,7 +257,7 @@ main{padding:10px 10px 0 10px}
 
 <script>
 "use strict";
-var APP_VER="v8.5";
+var APP_VER="v8.6";
 var LS_CUR="cbct_cur_v4", LS_HIST="cbct_hist_v4", LS_TRASH="cbct_trash_v1";
 
 /* 导管位置按手术推进顺序排列：
@@ -629,7 +639,8 @@ function renderSum(){
   document.getElementById("sF").textContent=f;
   document.getElementById("sV").textContent=(Math.round(v*10)/10)+"mL";
   document.getElementById("sI").textContent=(Math.round(iod*10)/10)+"g";
-  document.getElementById("cnt").textContent=S.runs.length+" 条 · "+APP_VER;
+  document.getElementById("cnt").textContent=S.runs.length+" 条"+
+    (S._fromHist?" · 编辑已存档":"")+" · "+APP_VER;
 }
 
 /* ---------------- 导出 ---------------- */
@@ -797,8 +808,19 @@ function forceRefresh(){
 /* ---------------- 台次 ---------------- */
 function newSession(){
   if(!S.runs.length){alert("本台还没有记录");return}
-  if(!confirm("结束本台并存档？\n存档后开一张新表（下一位患者）。"))return;
-  var h=histData();h.unshift(JSON.parse(JSON.stringify(S)));
+  /* 如果这一台是从历史载入的（id 已存在），就覆盖原记录，不能新增一条。
+     否则「载入→改→存档」会留下两条，而且内容几乎一样，事后分不清哪条对。 */
+  var h=histData(),idx=-1;
+  for(var j=0;j<h.length;j++){ if(h[j].id&&h[j].id===S.id){idx=j;break} }
+  var updating=idx>=0;
+  var q=updating
+    ? "更新已存档的这一台？\n\n"+(S.pname||"(无姓名)")+" "+(S.empi||"")+"\n"+
+      (S.date||"")+" · "+S.runs.length+" 条\n\n会在原记录上覆盖，不会新增一条。"
+    : "结束本台并存档？\n\n存档后开一张新表（下一位患者）。";
+  if(!confirm(q))return;
+  var copy=JSON.parse(JSON.stringify(S));
+  delete copy._fromHist;
+  if(updating){h[idx]=copy}else{h.unshift(copy)}
   localStorage.setItem(LS_HIST,JSON.stringify(h));
   var keepTech=S.tech,keepDev=S.device;
   /* 技师与设备沿用，手术类型重置为 TACE —— 它是绝大多数情况，
@@ -811,9 +833,50 @@ function newSession(){
   document.getElementById("surgery").value=S.surgery;
   document.getElementById("date").value=S.date;
   save();render();
-  alert("已存档。记得先点「导出」把 CSV 发出去，再开下一位。");
+  alert(updating
+    ? "已更新原有台次（未新增）。\n\n记得重新导出一次 CSV，否则手里的文件还是旧的。"
+    : "已存档。记得先点「导出」把 CSV 发出去，再开下一位。");
 }
 var histMode="list";      /* "list" 或 "trash" */
+var selIds={};            /* 勾选导出的台次 id */
+
+function rowsOfSessions(list,mask){
+  var out=[];
+  list.forEach(function(s){(s.runs||[]).forEach(function(r){out.push(rowOf(s,r,mask))})});
+  return out;
+}
+
+function toggleSel(el){
+  var id=el.getAttribute("data-id");
+  if(!id)return;
+  if(el.checked)selIds[id]=1;else delete selIds[id];
+  renderHistSheet();
+}
+
+function toggleSelDate(el){
+  var d=el.getAttribute("data-d");
+  histData().forEach(function(s){
+    if((s.date||"(无日期)")===d){
+      if(el.checked)selIds[s.id]=1;else delete selIds[s.id];
+    }
+  });
+  renderHistSheet();
+}
+
+function selAll(on){
+  if(!on){selIds={}}
+  else{histData().forEach(function(s){selIds[s.id]=1})}
+  renderHistSheet();
+}
+
+function exportSelCSV(){
+  var sel=histData().filter(function(s){return selIds[s.id]});
+  if(!sel.length){alert("还没有勾选台次。\n勾上要导出的台次，或点「全选」。");return}
+  var rows=rowsOfSessions(sel,false);
+  if(!rows.length){alert("勾选的台次里没有记录。");return}
+  saveBlob(new Blob([buildCSV(rows)],{type:"text/csv;charset=utf-8"}),
+           "CBCT_选中"+sel.length+"台_"+tsName()+".csv");
+}
 
 function sessionIodine(s){
   var iod=0;
@@ -843,6 +906,8 @@ function renderHistSheet(){
   if(histMode==="trash"){
     var t=trashData();
     if(bar)bar.innerHTML="";
+    var sb0=document.getElementById("selBar");
+    if(sb0)sb0.innerHTML="";
     if(!t.length){
       box.innerHTML='<div class="empty">回收站是空的</div>'+
         '<button class="sec" onclick="trashBack()">← 返回台次列表</button>';
@@ -865,18 +930,54 @@ function renderHistSheet(){
   }
 
   var h=histData();
-  if(!h.length){box.innerHTML='<div class="empty">还没有存档的台次</div>'}
-  else{
+  var selBarEl=document.getElementById("selBar");
+  if(!h.length){
+    box.innerHTML='<div class="empty">还没有存档的台次</div>';
+    if(selBarEl)selBarEl.innerHTML="";
+  }else{
     var dup=dupFlags(h);
-    box.innerHTML=h.map(function(s,i){
-      return '<div class="hist"><div class="info"><b>'+esc(s.pname||"(无姓名)")+'</b> '+
-        esc(s.empi||"")+' · '+esc(s.date)+' · '+(s.runs||[]).length+' 条 · 碘 '+
-        sessionIodine(s)+' g'+(dup[i]?'<span class="dup">疑重复</span>':'')+
-        '</div><div class="btns2">'+
-        '<button class="mini" onclick="restore('+i+')">载入</button>'+
-        '<button class="mini d" onclick="histDel('+i+')">删</button>'+
-        '</div></div>';
-    }).join("");
+    /* 按日期分组：日期倒序，同日内保持原有顺序（新→旧） */
+    var byDate={},order=[];
+    h.forEach(function(s,i){
+      var d=s.date||"(无日期)";
+      if(!byDate[d]){byDate[d]=[];order.push(d)}
+      byDate[d].push(i);
+    });
+    order.sort(function(a,b){return a<b?1:(a>b?-1:0)});
+
+    var html="";
+    order.forEach(function(d){
+      var idxs=byDate[d];
+      var allOn=idxs.every(function(i){return !!selIds[h[i].id]});
+      var iod=idxs.reduce(function(a,i){return a+sessionIodine(h[i])},0);
+      html+='<div class="ghead"><input type="checkbox"'+(allOn?" checked":"")+
+        ' data-d="'+esc(d)+'" onchange="toggleSelDate(this)">'+
+        '<b>'+esc(d)+'</b><span>'+idxs.length+' 台 · 碘 '+Math.round(iod*10)/10+' g</span></div>';
+      idxs.forEach(function(i){
+        var s=h[i];
+        html+='<div class="hist">'+
+          '<label class="ck"><input type="checkbox"'+(selIds[s.id]?" checked":"")+
+          ' data-id="'+esc(s.id)+'" onchange="toggleSel(this)"></label>'+
+          '<div class="info"><b>'+esc(s.pname||"(无姓名)")+'</b> '+
+          esc(s.empi||"")+' · '+(s.runs||[]).length+' 条 · 碘 '+
+          sessionIodine(s)+' g'+(dup[i]?'<span class="dup">疑重复</span>':'')+
+          '</div><div class="btns2">'+
+          '<button class="mini" onclick="restore('+i+')">载入</button>'+
+          '<button class="mini d" onclick="histDel('+i+')">删</button>'+
+          '</div></div>';
+      });
+    });
+    box.innerHTML=html;
+
+    var n=Object.keys(selIds).length;
+    if(selBarEl){
+      selBarEl.innerHTML='<div class="selbar">'+
+        '<button class="mini" onclick="selAll(true)">全选</button>'+
+        '<button class="mini" onclick="selAll(false)">清空</button>'+
+        '<span class="selcount">已选 '+n+' 台</span>'+
+        '<button class="mini g" onclick="exportSelCSV()">导出选中</button>'+
+        '</div>';
+    }
   }
   var t2=trashData();
   if(bar){
@@ -888,6 +989,7 @@ function renderHistSheet(){
 
 function openHist(){
   histMode="list";
+  selIds={};
   renderHistSheet();
   document.getElementById("shHist").classList.add("on");
 }
@@ -958,6 +1060,7 @@ function restore(i){
   if(!confirm("载入这一台？当前未存档的记录会被覆盖。"))return;
   S=h[i];if(!S.runs)S.runs=[];
   if(!S.surgery)S.surgery="TACE";
+  S._fromHist=S.id;   /* 标记来源，供标题栏提示「编辑已存档」 */
   save();
   ["pname","empi","date","tech","device","surgery"].forEach(function(k){
     var el=document.getElementById(k);if(el)el.value=S[k]||"";
